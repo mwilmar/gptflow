@@ -1,0 +1,454 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>GPTFlow — AI Content Automation</title>
+<style>
+:root{--bg:#0f172a;--surface:#1e293b;--surface2:#334155;--border:#475569;--text:#e2e8f0;--muted:#94a3b8;--primary:#3b82f6;--primary-hover:#2563eb;--success:#10b981;--warning:#f59e0b;--danger:#ef4444;--purple:#8b5cf6;}
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:Inter,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+button{cursor:pointer;font-family:inherit;}
+input,select,textarea{font-family:inherit;font-size:0.9rem;}
+
+/* Layout */
+.app{display:flex;height:100vh;}
+.sidebar{width:220px;background:var(--surface);border-right:1px solid var(--border);padding:16px 0;display:flex;flex-direction:column;}
+.sidebar .logo{padding:0 20px 20px;font-size:1.3rem;font-weight:700;color:var(--primary);}
+.sidebar .logo span{color:var(--warning);}
+.nav-item{padding:10px 20px;color:var(--muted);cursor:pointer;font-size:0.9rem;border-left:3px solid transparent;transition:all 0.2s;}
+.nav-item:hover,.nav-item.active{background:var(--surface2);color:var(--text);border-left-color:var(--primary);}
+.main{flex:1;overflow-y:auto;padding:24px;}
+
+/* Auth */
+.auth-page{display:flex;align-items:center;justify-content:center;height:100vh;background:var(--bg);}
+.auth-box{background:var(--surface);padding:40px;border-radius:12px;width:380px;border:1px solid var(--border);}
+.auth-box h2{margin-bottom:20px;color:var(--primary);}
+.form-group{margin-bottom:16px;}
+.form-group label{display:block;margin-bottom:4px;color:var(--muted);font-size:0.85rem;}
+.form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);outline:none;}
+.form-group input:focus,.form-group textarea:focus{border-color:var(--primary);}
+.btn{padding:10px 20px;border:none;border-radius:6px;font-size:0.9rem;font-weight:600;transition:all 0.2s;}
+.btn-primary{background:var(--primary);color:white;}
+.btn-primary:hover{background:var(--primary-hover);}
+.btn-success{background:var(--success);color:white;}
+.btn-danger{background:var(--danger);color:white;}
+.btn-warning{background:var(--warning);color:#000;}
+.btn-sm{padding:6px 12px;font-size:0.8rem;}
+.btn-block{width:100%;}
+.link{color:var(--primary);cursor:pointer;font-size:0.85rem;}
+
+/* Cards */
+.stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:16px;margin-bottom:24px;}
+.stat-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;}
+.stat-card .value{font-size:1.8rem;font-weight:700;color:var(--primary);}
+.stat-card .label{color:var(--muted);font-size:0.8rem;margin-top:4px;}
+
+/* Content list */
+.content-list{display:flex;flex-direction:column;gap:12px;}
+.content-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px;}
+.content-card .header{display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;}
+.content-card .topic{font-weight:600;font-size:1rem;}
+.badge{padding:3px 8px;border-radius:12px;font-size:0.7rem;font-weight:600;text-transform:uppercase;}
+.badge-draft{background:#334155;color:#94a3b8;}
+.badge-pending{background:#78350f;color:#fbbf24;}
+.badge-approved{background:#064e3b;color:#6ee7b7;}
+.badge-scheduled{background:#1e3a5f;color:#7dd3fc;}
+.badge-rejected{background:#450a0a;color:#fca5a5;}
+.content-card .meta{color:var(--muted);font-size:0.8rem;margin-bottom:8px;}
+.content-card .caption{color:var(--text);font-size:0.85rem;line-height:1.5;max-height:60px;overflow:hidden;}
+.content-card .actions{margin-top:12px;display:flex;gap:8px;flex-wrap:wrap;}
+
+/* Generator */
+.gen-result{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:20px;margin-top:16px;}
+.gen-result h4{color:var(--primary);margin-bottom:8px;}
+.gen-result .section{margin-bottom:12px;}
+.gen-result .section-title{color:var(--warning);font-size:0.8rem;font-weight:600;margin-bottom:4px;}
+.gen-result .section-body{color:var(--text);font-size:0.88rem;line-height:1.5;white-space:pre-wrap;}
+.tags{display:flex;flex-wrap:wrap;gap:4px;margin-top:8px;}
+.tag{background:var(--surface2);color:var(--muted);padding:2px 8px;border-radius:10px;font-size:0.75rem;}
+
+/* Calendar */
+.calendar-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;margin-top:16px;}
+.cal-header{background:var(--surface2);padding:8px;text-align:center;font-size:0.8rem;color:var(--muted);font-weight:600;}
+.cal-day{background:var(--surface);border:1px solid var(--border);padding:8px;min-height:80px;font-size:0.75rem;}
+.cal-day .day-num{font-weight:600;margin-bottom:4px;color:var(--muted);}
+.cal-day .cal-item{background:var(--primary);color:white;padding:2px 4px;border-radius:3px;margin-bottom:2px;font-size:0.7rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.cal-item.carousel{background:var(--purple);}
+.cal-item.reels{background:var(--danger);}
+.cal-item.story{background:var(--warning);color:#000;}
+
+.page-title{font-size:1.4rem;font-weight:700;margin-bottom:20px;}
+.hidden{display:none!important;}
+.mt-12{margin-top:12px;}
+.mb-16{margin-bottom:16px;}
+.flex-between{display:flex;justify-content:space-between;align-items:center;}
+</style>
+</head>
+<body>
+
+<!-- AUTH PAGE -->
+<div id="auth-page" class="auth-page">
+  <div class="auth-box">
+    <h2 id="auth-title">Login</h2>
+    <div id="auth-name-group" class="form-group hidden">
+      <label>Nama</label>
+      <input id="auth-name" placeholder="Nama lengkap">
+    </div>
+    <div class="form-group">
+      <label>Email</label>
+      <input id="auth-email" type="email" placeholder="email@example.com">
+    </div>
+    <div class="form-group">
+      <label>Password</label>
+      <input id="auth-password" type="password" placeholder="••••••••">
+    </div>
+    <button class="btn btn-primary btn-block" onclick="doAuth()">Login</button>
+    <p class="mt-12"><span class="link" onclick="toggleAuth()">Belum punya akun? Register</span></p>
+    <p id="auth-error" style="color:var(--danger);font-size:0.85rem;margin-top:8px;"></p>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="app-page" class="app hidden">
+  <div class="sidebar">
+    <div class="logo">GPT<span>Flow</span></div>
+    <div class="nav-item active" onclick="showPage('dashboard')">📊 Dashboard</div>
+    <div class="nav-item" onclick="showPage('generate')">✨ Generate</div>
+    <div class="nav-item" onclick="showPage('content')">📝 Content</div>
+    <div class="nav-item" onclick="showPage('calendar')">📅 Calendar</div>
+    <div class="nav-item" onclick="showPage('approval')">✓ Approval</div>
+    <div style="flex:1"></div>
+    <div class="nav-item" onclick="logout()">🚪 Logout</div>
+  </div>
+  <div class="main">
+    <!-- Dashboard -->
+    <div id="page-dashboard">
+      <div class="page-title">Dashboard</div>
+      <div class="stats" id="stats"></div>
+      <h3 style="margin-bottom:12px;color:var(--muted)">Konten Terbaru</h3>
+      <div class="content-list" id="recent-content"></div>
+    </div>
+    <!-- Generate -->
+    <div id="page-generate" class="hidden">
+      <div class="page-title">✨ AI Content Generator</div>
+      <div style="max-width:600px">
+        <div class="form-group"><label>Topik</label><input id="gen-topic" placeholder="Contoh: Tips Public Speaking"></div>
+        <div class="form-group"><label>Target Audiens</label><input id="gen-audience" placeholder="Contoh: Mahasiswa 18-25 tahun" value="Mahasiswa"></div>
+        <div class="form-group"><label>Gaya Bahasa</label>
+          <select id="gen-tone"><option value="casual_edukatif">Casual Edukatif</option><option value="formal">Formal</option><option value="fun">Fun & Playful</option></select>
+        </div>
+        <div class="form-group"><label>Jenis Konten</label>
+          <select id="gen-type"><option value="feed">Feed (Caption)</option><option value="carousel">Carousel</option><option value="reels">Reels Script</option><option value="story">Story</option></select>
+        </div>
+        <div class="form-group"><label>Konteks Tambahan (opsional)</label><textarea id="gen-context" rows="2" placeholder="Instruksi tambahan..."></textarea></div>
+        <button class="btn btn-primary" onclick="doGenerate()" id="gen-btn">🤖 Generate Content</button>
+      </div>
+      <div id="gen-result" class="hidden"></div>
+    </div>
+    <!-- Content List -->
+    <div id="page-content" class="hidden">
+      <div class="flex-between mb-16"><div class="page-title" style="margin:0">📝 Semua Konten</div>
+        <select id="filter-status" onchange="loadContent()" style="padding:6px 12px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px;">
+          <option value="">Semua Status</option><option value="draft">Draft</option><option value="pending_approval">Pending</option><option value="approved">Approved</option><option value="scheduled">Scheduled</option><option value="rejected">Rejected</option>
+        </select>
+      </div>
+      <div class="content-list" id="content-list"></div>
+    </div>
+    <!-- Calendar -->
+    <div id="page-calendar" class="hidden">
+      <div class="page-title">📅 Content Calendar</div>
+      <div id="calendar-container"></div>
+    </div>
+    <!-- Approval -->
+    <div id="page-approval" class="hidden">
+      <div class="page-title">✓ Pending Approval</div>
+      <div class="content-list" id="approval-list"></div>
+    </div>
+  </div>
+</div>
+
+<!-- CONTENT DETAIL MODAL -->
+<div id="modal" class="hidden" style="position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;display:flex;align-items:center;justify-content:center;">
+  <div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;max-width:600px;width:90%;max-height:80vh;overflow-y:auto;">
+    <div class="flex-between mb-16"><h3 id="modal-title">Detail</h3><button class="btn btn-sm" onclick="closeModal()">✕</button></div>
+    <div id="modal-body"></div>
+  </div>
+</div>
+
+<script>
+let token = localStorage.getItem('gptflow_token');
+let user = JSON.parse(localStorage.getItem('gptflow_user') || 'null');
+let isRegister = false;
+
+// Init
+if (token && user) { showApp(); } else { showAuth(); }
+
+function showAuth() { document.getElementById('auth-page').classList.remove('hidden'); document.getElementById('app-page').classList.add('hidden'); }
+function showApp() { document.getElementById('auth-page').classList.add('hidden'); document.getElementById('app-page').classList.remove('hidden'); loadDashboard(); }
+
+function toggleAuth() {
+  isRegister = !isRegister;
+  document.getElementById('auth-title').textContent = isRegister ? 'Register' : 'Login';
+  document.getElementById('auth-name-group').classList.toggle('hidden', !isRegister);
+  document.querySelector('#auth-page .btn').textContent = isRegister ? 'Register' : 'Login';
+  document.querySelector('#auth-page .link').textContent = isRegister ? 'Sudah punya akun? Login' : 'Belum punya akun? Register';
+}
+
+async function doAuth() {
+  const email = document.getElementById('auth-email').value;
+  const password = document.getElementById('auth-password').value;
+  const name = document.getElementById('auth-name').value;
+  const endpoint = isRegister ? '/api/auth/register' : '/api/auth/login';
+  const body = isRegister ? { email, password, name } : { email, password };
+  try {
+    const res = await api(endpoint, 'POST', body, false);
+    token = res.data.token; user = res.data.user;
+    localStorage.setItem('gptflow_token', token);
+    localStorage.setItem('gptflow_user', JSON.stringify(user));
+    showApp();
+  } catch (e) { document.getElementById('auth-error').textContent = e.message; }
+}
+
+function logout() { localStorage.clear(); token = null; user = null; showAuth(); }
+
+// API helper
+async function api(url, method = 'GET', body = null, auth = true) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (auth && token) opts.headers['Authorization'] = 'Bearer ' + token;
+  if (body) opts.body = JSON.stringify(body);
+  const res = await fetch(url, opts);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail || 'Error');
+  return data;
+}
+
+// Navigation
+function showPage(page) {
+  document.querySelectorAll('.nav-item').forEach((el, i) => el.classList.toggle('active', el.textContent.includes(page === 'dashboard' ? 'Dashboard' : page === 'generate' ? 'Generate' : page === 'content' ? 'Content' : page === 'calendar' ? 'Calendar' : 'Approval')));
+  ['dashboard','generate','content','calendar','approval'].forEach(p => document.getElementById('page-'+p).classList.toggle('hidden', p !== page));
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'content') loadContent();
+  if (page === 'calendar') loadCalendar();
+  if (page === 'approval') loadApproval();
+}
+
+// Dashboard
+async function loadDashboard() {
+  try {
+    const res = await api('/api/dashboard');
+    const d = res.data;
+    document.getElementById('stats').innerHTML = `
+      <div class="stat-card"><div class="value">${d.total}</div><div class="label">Total Konten</div></div>
+      <div class="stat-card"><div class="value">${d.drafts}</div><div class="label">Draft</div></div>
+      <div class="stat-card"><div class="value">${d.pending_approval}</div><div class="label">Pending Approval</div></div>
+      <div class="stat-card"><div class="value">${d.approved}</div><div class="label">Approved</div></div>
+      <div class="stat-card"><div class="value">${d.scheduled}</div><div class="label">Scheduled</div></div>
+      <div class="stat-card"><div class="value">${d.ig_connected ? '✅' : '❌'}</div><div class="label">Instagram</div></div>`;
+    const contents = await api('/api/content');
+    document.getElementById('recent-content').innerHTML = contents.data.slice(0, 5).map(c => contentCard(c)).join('');
+  } catch(e) { console.error(e); }
+}
+
+// Generate
+async function doGenerate() {
+  const btn = document.getElementById('gen-btn');
+  btn.disabled = true; btn.textContent = '⏳ Generating...';
+  try {
+    const res = await api('/api/content/generate', 'POST', {
+      topic: document.getElementById('gen-topic').value,
+      audience: document.getElementById('gen-audience').value,
+      tone: document.getElementById('gen-tone').value,
+      content_type: document.getElementById('gen-type').value,
+      additional_context: document.getElementById('gen-context').value,
+    });
+    const c = res.data;
+    let html = `<div class="gen-result"><h4>✅ Generated: ${c.topic}</h4>`;
+    if (c.hook) html += `<div class="section"><div class="section-title">🎣 HOOK</div><div class="section-body">${esc(c.hook)}</div></div>`;
+    if (c.caption) html += `<div class="section"><div class="section-title">📝 CAPTION</div><div class="section-body">${esc(c.caption)}</div></div>`;
+    if (c.slides) { html += `<div class="section"><div class="section-title">📑 SLIDES</div>`; c.slides.forEach(s => { html += `<div class="section-body"><b>Slide ${s.number}:</b> ${esc(s.heading)}<br>${esc(s.body)}</div>`; }); html += `</div>`; }
+    if (c.reels_script) { const r = c.reels_script; html += `<div class="section"><div class="section-title">🎬 REELS SCRIPT</div><div class="section-body">${JSON.stringify(r, null, 2)}</div></div>`; }
+    if (c.cta) html += `<div class="section"><div class="section-title">📢 CTA</div><div class="section-body">${esc(c.cta)}</div></div>`;
+    if (c.hashtags?.length) html += `<div class="tags">${c.hashtags.map(h => `<span class="tag">${esc(h)}</span>`).join('')}</div>`;
+    html += `<div class="actions mt-12"><button class="btn btn-sm btn-primary" onclick="submitContent('${c.id}')">📤 Submit Approval</button><button class="btn btn-sm btn-danger" onclick="deleteContent('${c.id}')">🗑 Delete</button></div></div>`;
+    document.getElementById('gen-result').innerHTML = html;
+    document.getElementById('gen-result').classList.remove('hidden');
+  } catch(e) { alert('Error: ' + e.message); }
+  btn.disabled = false; btn.textContent = '🤖 Generate Content';
+}
+
+// Content List
+async function loadContent() {
+  const status = document.getElementById('filter-status').value;
+  const url = status ? `/api/content?status=${status}` : '/api/content';
+  const res = await api(url);
+  document.getElementById('content-list').innerHTML = res.data.length ? res.data.map(c => contentCard(c, true)).join('') : '<p style="color:var(--muted)">Belum ada konten.</p>';
+}
+
+// Approval
+async function loadApproval() {
+  const res = await api('/api/content?status=pending_approval');
+  document.getElementById('approval-list').innerHTML = res.data.length ? res.data.map(c => contentCard(c, true, true)).join('') : '<p style="color:var(--muted)">Tidak ada konten pending.</p>';
+}
+
+// Calendar
+async function loadCalendar() {
+  const now = new Date();
+  const res = await api(`/api/schedule/calendar?month=${now.getMonth()+1}&year=${now.getFullYear()}`);
+  const days = ['Sen','Sel','Rab','Kam','Jum','Sab','Min'];
+  let html = days.map(d => `<div class="cal-header">${d}</div>`).join('');
+  const firstDay = new Date(now.getFullYear(), now.getMonth(), 1).getDay();
+  const offset = firstDay === 0 ? 6 : firstDay - 1;
+  for (let i = 0; i < offset; i++) html += `<div class="cal-day"></div>`;
+  const daysInMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const items = res.data.filter(c => new Date(c.scheduled_at).getDate() === d);
+    html += `<div class="cal-day"><div class="day-num">${d}</div>${items.map(c => `<div class="cal-item ${c.content_type}">${c.topic.slice(0,20)}</div>`).join('')}</div>`;
+  }
+  document.getElementById('calendar-container').innerHTML = `<div class="calendar-grid">${html}</div>`;
+}
+
+// Actions
+async function submitContent(id) { await api(`/api/content/${id}/submit`, 'POST'); alert('Submitted!'); loadContent(); }
+async function approveContent(id) { await api(`/api/content/${id}/approve`, 'POST'); alert('Approved!'); loadApproval(); }
+async function rejectContent(id) { const notes = prompt('Catatan penolakan:'); if (notes !== null) { await api(`/api/content/${id}/reject`, 'POST', { notes }); alert('Rejected'); loadApproval(); } }
+async function deleteContent(id) { if (confirm('Hapus konten ini?')) { await api(`/api/content/${id}`, 'DELETE'); loadContent(); loadDashboard(); } }
+async function scheduleContent(id) { const dt = prompt('Jadwal posting (YYYY-MM-DDTHH:MM):', new Date(Date.now()+86400000).toISOString().slice(0,16)); if (dt) { await api(`/api/content/${id}/schedule`, 'POST', { content_id: id, scheduled_at: dt }); alert('Scheduled!'); loadContent(); } }
+
+function viewContent(id) {
+  api(`/api/content/${id}`).then(res => {
+    const c = res.data;
+    let html = `
+    <div style="max-width:400px;margin:0 auto;background:#000;border-radius:12px;overflow:hidden;font-family:-apple-system,sans-serif;">
+      <!-- IG Header -->
+      <div style="display:flex;align-items:center;padding:12px 14px;background:#000;border-bottom:1px solid #262626;">
+        <div style="width:32px;height:32px;border-radius:50%;background:linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888);display:flex;align-items:center;justify-content:center;">
+          <div style="width:28px;height:28px;border-radius:50%;background:#000;display:flex;align-items:center;justify-content:center;font-size:12px;color:white;">GP</div>
+        </div>
+        <div style="margin-left:10px;flex:1;">
+          <div style="color:white;font-size:13px;font-weight:600;">gptflow.school</div>
+          <div style="color:#a8a8a8;font-size:11px;">Sponsored</div>
+        </div>
+        <div style="color:white;font-size:16px;">•••</div>
+      </div>
+      <!-- IG Content Area -->
+      <div style="background:#1a1a1a;min-height:300px;display:flex;align-items:center;justify-content:center;padding:24px;position:relative;">`;
+
+    if (c.content_type === 'carousel' && c.slides?.length) {
+      html += `<div id="ig-carousel" style="width:100%;text-align:center;">
+        <div style="color:white;font-size:11px;position:absolute;top:12px;right:14px;background:rgba(0,0,0,0.7);padding:4px 8px;border-radius:12px;" id="slide-counter">1/${c.slides.length}</div>
+        <div id="slide-content" style="color:white;padding:20px;">
+          <div style="font-size:18px;font-weight:700;margin-bottom:12px;">${esc(c.slides[0].heading)}</div>
+          <div style="font-size:14px;line-height:1.6;color:#e0e0e0;">${esc(c.slides[0].body)}</div>
+        </div>
+        <div style="display:flex;justify-content:center;gap:8px;margin-top:16px;">
+          <button onclick="prevSlide()" style="background:#333;border:none;color:white;padding:6px 14px;border-radius:6px;cursor:pointer;">◀</button>
+          <button onclick="nextSlide()" style="background:#333;border:none;color:white;padding:6px 14px;border-radius:6px;cursor:pointer;">▶</button>
+        </div>
+      </div>`;
+    } else if (c.content_type === 'reels' && c.reels_script) {
+      const rs = c.reels_script;
+      html += `<div style="color:white;text-align:center;width:100%;">
+        <div style="font-size:11px;color:#a8a8a8;margin-bottom:8px;">▶ REELS PREVIEW</div>
+        <div style="background:#262626;border-radius:8px;padding:16px;margin-bottom:8px;text-align:left;">
+          <div style="color:#ff4757;font-size:11px;font-weight:600;">🎬 HOOK (${rs.hook?.duration || '3s'})</div>
+          <div style="color:white;font-size:14px;margin-top:4px;">${esc(rs.hook?.text || c.hook)}</div>
+        </div>
+        ${(rs.scenes||[]).map((s,i) => `<div style="background:#262626;border-radius:8px;padding:12px;margin-bottom:6px;text-align:left;">
+          <div style="color:#a8a8a8;font-size:10px;">Scene ${i+1} (${s.duration})</div>
+          <div style="color:white;font-size:13px;margin-top:2px;">${esc(s.text)}</div>
+          <div style="color:#666;font-size:11px;font-style:italic;margin-top:4px;">📷 ${esc(s.visual||'')}</div>
+        </div>`).join('')}
+        <div style="background:#262626;border-radius:8px;padding:12px;text-align:left;">
+          <div style="color:#2ed573;font-size:11px;font-weight:600;">📢 CTA (${rs.cta?.duration || '5s'})</div>
+          <div style="color:white;font-size:13px;margin-top:2px;">${esc(rs.cta?.text || c.cta)}</div>
+        </div>
+      </div>`;
+    } else {
+      html += `<div style="color:white;text-align:center;font-size:24px;padding:40px;">
+        <div style="font-size:48px;margin-bottom:16px;">📸</div>
+        <div style="font-size:14px;color:#a8a8a8;">Image placeholder</div>
+      </div>`;
+    }
+
+    html += `</div>
+      <!-- IG Actions -->
+      <div style="padding:12px 14px;background:#000;">
+        <div style="display:flex;gap:16px;margin-bottom:10px;">
+          <span style="font-size:22px;">♡</span>
+          <span style="font-size:22px;">💬</span>
+          <span style="font-size:22px;">↗</span>
+          <span style="flex:1"></span>
+          <span style="font-size:22px;">🔖</span>
+        </div>
+        <!-- Likes -->
+        <div style="color:white;font-size:13px;font-weight:600;margin-bottom:6px;">1,234 likes</div>
+        <!-- Caption -->
+        <div style="color:white;font-size:13px;line-height:1.5;">
+          <span style="font-weight:600;">gptflow.school</span> ${esc(c.caption || '').replace(/\n/g, '<br>')}
+        </div>
+        <!-- Hashtags -->
+        <div style="color:#3897f0;font-size:12px;margin-top:6px;line-height:1.6;">${(c.hashtags||[]).map(h => esc(h)).join(' ')}</div>
+        <!-- Time -->
+        <div style="color:#a8a8a8;font-size:11px;margin-top:8px;">2 HOURS AGO</div>
+      </div>
+    </div>
+    <!-- Status info below preview -->
+    <div style="margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+      <p><b>Tipe:</b> ${c.content_type} | <b>Status:</b> <span class="badge badge-${c.status.replace('pending_approval','pending')}">${c.status}</span></p>
+      ${c.scheduled_at ? `<p style="color:var(--muted);margin-top:8px;">📅 Dijadwalkan: ${new Date(c.scheduled_at).toLocaleString('id-ID')}</p>` : ''}
+      ${c.reject_notes ? `<p style="color:var(--danger);margin-top:8px;">❌ Ditolak: ${c.reject_notes}</p>` : ''}
+    </div>`;
+
+    document.getElementById('modal-title').textContent = '📱 Instagram Preview';
+    document.getElementById('modal-body').innerHTML = html;
+    document.getElementById('modal').classList.remove('hidden');
+    document.getElementById('modal').style.display = 'flex';
+
+    // Carousel navigation
+    if (c.content_type === 'carousel' && c.slides?.length) {
+      window._slides = c.slides;
+      window._currentSlide = 0;
+    }
+  });
+}
+function nextSlide() {
+  if (!window._slides) return;
+  window._currentSlide = (window._currentSlide + 1) % window._slides.length;
+  updateSlide();
+}
+function prevSlide() {
+  if (!window._slides) return;
+  window._currentSlide = (window._currentSlide - 1 + window._slides.length) % window._slides.length;
+  updateSlide();
+}
+function updateSlide() {
+  const s = window._slides[window._currentSlide];
+  document.getElementById('slide-content').innerHTML = `<div style="font-size:18px;font-weight:700;margin-bottom:12px;">${esc(s.heading)}</div><div style="font-size:14px;line-height:1.6;color:#e0e0e0;">${esc(s.body)}</div>`;
+  document.getElementById('slide-counter').textContent = `${window._currentSlide+1}/${window._slides.length}`;
+}
+function closeModal() { document.getElementById('modal').classList.add('hidden'); document.getElementById('modal').style.display = 'none'; }
+
+// Helpers
+function contentCard(c, showActions = false, isApproval = false) {
+  let actions = '';
+  if (showActions) {
+    actions = `<div class="actions">
+      <button class="btn btn-sm btn-primary" onclick="viewContent('${c.id}')">👁 View</button>
+      ${c.status === 'draft' ? `<button class="btn btn-sm btn-warning" onclick="submitContent('${c.id}')">📤 Submit</button>` : ''}
+      ${c.status === 'approved' ? `<button class="btn btn-sm btn-success" onclick="scheduleContent('${c.id}')">📅 Schedule</button>` : ''}
+      ${isApproval ? `<button class="btn btn-sm btn-success" onclick="approveContent('${c.id}')">✅ Approve</button><button class="btn btn-sm btn-danger" onclick="rejectContent('${c.id}')">❌ Reject</button>` : ''}
+      ${c.status === 'draft' ? `<button class="btn btn-sm btn-danger" onclick="deleteContent('${c.id}')">🗑</button>` : ''}
+    </div>`;
+  }
+  return `<div class="content-card">
+    <div class="header"><span class="topic">${esc(c.topic)}</span><span class="badge badge-${c.status.replace('pending_approval','pending')}">${c.status}</span></div>
+    <div class="meta">${c.content_type} • ${c.created_at ? new Date(c.created_at).toLocaleDateString('id-ID') : ''}</div>
+    <div class="caption">${esc(c.caption || c.hook || '')}</div>
+    ${actions}
+  </div>`;
+}
+function esc(s) { if (!s) return ''; const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+</script>
+</body>
+</html>
