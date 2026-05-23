@@ -12,7 +12,34 @@
        │                        │                        │
 ┌──────▼────────────────────────▼────────────────────────▼───────┐
 │                         GPTFlow Backend                          │
-└─────────────────────────────────────────────────────────────────┘
+└──────▲────────────────────────▲────────────────────────────────┘
+       │                        │
+┌──────┴───────┐         ┌──────┴───────┐
+│   Groq API   │         │   Unsplash   │
+│  (primary)   │         │  (images)    │
+└──────────────┘         └──────────────┘
+```
+
+## 5. Unsplash Integration (v1.1.0)
+
+### Image Search
+```python
+GET https://api.unsplash.com/search/photos
+  ?query={topic_keyword}
+  &per_page=4
+  &orientation=squarish
+Headers: Authorization: Client-ID {access_key}
+```
+
+### File Upload
+- Endpoint: `POST /api/upload`
+- Storage: `static/uploads/{uuid}_{filename}`
+- Served via FastAPI StaticFiles mount
+
+### Image Flow
+```
+Generate content → Auto-search Unsplash (by topic) → User picks image OR uploads
+→ PUT /api/content/{id}/image → Saved in DB → Shown in IG preview
 ```
 
 ## 1. OpenAI Integration

@@ -5,3 +5,4 @@ __pycache__/
 nohup.out
 *.db
 .DS_Store
+static/uploads/

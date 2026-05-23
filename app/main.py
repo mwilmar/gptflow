@@ -32,6 +32,7 @@ class Settings(BaseSettings):
     ai_provider: str = "groq"  # "groq", "openai", or "hybrid"
     ig_app_id: str = ""
     ig_app_secret: str = ""
+    unsplash_access_key: str = ""
     debug: bool = True
 
     class Config:
@@ -74,6 +75,7 @@ class Content(Base):
     hashtags: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON string
     slides: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON string
     reels_script: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # JSON string
+    image_url: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     scheduled_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
     approved_by: Mapped[Optional[str]] = mapped_column(String(36), nullable=True)
     approved_at: Mapped[Optional[datetime]] = mapped_column(DateTime, nullable=True)
@@ -218,6 +220,24 @@ async def index():
     return FileResponse("static/index.html")
 
 
+# === ROUTES: Image Search (Unsplash) ===
+import httpx
+
+@app.get("/api/images/search")
+async def search_images(query: str, count: int = 3, user: dict = Depends(get_current_user)):
+    if not settings.unsplash_access_key:
+        raise HTTPException(500, "Unsplash API key not configured")
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(
+            "https://api.unsplash.com/search/photos",
+            params={"query": query, "per_page": count, "orientation": "squarish"},
+            headers={"Authorization": f"Client-ID {settings.unsplash_access_key}"}
+        )
+    data = resp.json()
+    images = [{"id": r["id"], "url": r["urls"]["regular"], "thumb": r["urls"]["small"], "alt": r.get("alt_description", "")} for r in data.get("results", [])]
+    return {"data": images}
+
+
 # === ROUTES: Auth ===
 @app.post("/api/auth/register")
 async def register(req: RegisterRequest, db: AsyncSession = Depends(get_db)):
@@ -288,6 +308,30 @@ async def delete_content(content_id: str, user: dict = Depends(get_current_user)
     await db.delete(content)
     await db.commit()
     return {"data": {"deleted": True}}
+
+
+class SetImageRequest(BaseModel):
+    image_url: str
+
+@app.put("/api/content/{content_id}/image")
+async def set_content_image(content_id: str, req: SetImageRequest, user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    content = await _get_content(content_id, db)
+    content.image_url = req.image_url
+    await db.commit()
+    return {"data": _content_to_dict(content)}
+
+
+from fastapi import UploadFile, File
+import shutil
+
+@app.post("/api/upload")
+async def upload_image(file: UploadFile = File(...), user: dict = Depends(get_current_user)):
+    os.makedirs("static/uploads", exist_ok=True)
+    filename = f"{uuid.uuid4().hex}_{file.filename}"
+    filepath = f"static/uploads/{filename}"
+    with open(filepath, "wb") as f:
+        shutil.copyfileobj(file.file, f)
+    return {"data": {"url": f"/static/uploads/{filename}"}}
 
 
 # === ROUTES: Approval ===
@@ -389,6 +433,7 @@ def _content_to_dict(c: Content) -> dict:
         "hashtags": json.loads(c.hashtags) if c.hashtags else [],
         "slides": json.loads(c.slides) if c.slides else None,
         "reels_script": json.loads(c.reels_script) if c.reels_script else None,
+        "image_url": c.image_url,
         "scheduled_at": c.scheduled_at.isoformat() if c.scheduled_at else None,
         "approved_by": c.approved_by, "reject_notes": c.reject_notes,
         "created_at": c.created_at.isoformat() if c.created_at else None,

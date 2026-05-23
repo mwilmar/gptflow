@@ -130,9 +130,14 @@ Legend: 🟢 Feed  🔵 Carousel  🟣 Reels  🟡 Story
 
 ## Implemented Pages
 1. **Auth** — Login/Register (centered card)
-2. **Dashboard** — Stats cards + recent content
-3. **Generate** — AI form (topic, audience, tone, type) + result preview
+2. **Dashboard** — Stats cards + recent content with actions
+3. **Generate** — AI form (topic, audience, tone, type) + result preview + image picker
 4. **Content** — List with status filter + actions
 5. **Calendar** — Monthly grid with color-coded items
 6. **Approval** — Pending items with approve/reject
-7. **IG Preview Modal** — Instagram-style post preview with carousel navigation
+7. **IG Preview Modal** — Instagram-style post preview with:
+   - Saved image (Unsplash or uploaded)
+   - Carousel slide navigation (◀ ▶)
+   - Reels script timeline view
+   - Caption, hashtags, action bar
+8. **Image Picker** — Unsplash search (4 results) + upload from computer

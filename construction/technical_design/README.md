@@ -106,6 +106,8 @@ gptflow/
 | Frontend | Vanilla HTML/CSS/JS SPA | Zero build step, fast iteration |
 | UI theme | Dark mode (Instagram-like) | Modern, matches IG aesthetic |
 | Config | pydantic-settings + .env | Simple, secure |
+| Image search | Unsplash API (free) | High quality, relevant |
+| File upload | FastAPI UploadFile → static/uploads/ | Simple, no S3 needed |
 | Deployment | localhost (uvicorn --reload) | MVP/development phase |
 
 ## API Design Principles

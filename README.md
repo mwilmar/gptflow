@@ -1,11 +1,12 @@
-# 🚀 GPTFlow v1.0.0-RC
+# 🚀 GPTFlow v1.1.0-RC
 
 AI-powered Instagram content automation platform untuk sekolah training/edukasi. Generate caption, carousel, reels script, dan story secara otomatis menggunakan AI, dengan approval workflow dan scheduling.
 
 ## ✨ Features
 
 - 🤖 **AI Content Generator** — Caption, carousel, reels script, story (hybrid Groq + OpenAI)
-- 📱 **Instagram Preview** — Preview konten seperti tampilan IG asli
+- 📷 **Image Picker** — Auto-search Unsplash + upload dari komputer
+- 📱 **Instagram Preview** — Preview konten seperti tampilan IG asli (dengan gambar)
 - 📅 **Content Calendar** — Kalender bulanan dengan color-coded content
 - ✅ **Approval Workflow** — Submit → Approve/Reject → Schedule
 - 📊 **Dashboard** — Overview stats (total, draft, pending, approved, scheduled)
@@ -92,6 +93,7 @@ gptflow/
 OPENAI_API_KEY=sk-...          # OpenAI (fallback)
 GROQ_API_KEY=gsk_...           # Groq (primary, free)
 AI_PROVIDER=hybrid             # groq | openai | hybrid
+UNSPLASH_ACCESS_KEY=...        # Image search (free)
 DATABASE_URL=postgresql+asyncpg://...
 REDIS_URL=redis://localhost:6379/0
 JWT_SECRET=<random-32-chars>
@@ -114,10 +116,11 @@ JWT_SECRET=<random-32-chars>
 
 ## 🗺 Roadmap
 
-- [x] v1.0.0-RC — AI generation, approval, scheduling, preview
-- [ ] v1.1.0 — Instagram Graph API auto-posting
-- [ ] v1.2.0 — Analytics + AI recommendation engine
-- [ ] v1.3.0 — Multi-account, role management
+- [x] v1.0.0-RC — AI generation, approval, scheduling, IG preview
+- [x] v1.1.0-RC — Image picker (Unsplash + upload), hybrid AI (Groq + OpenAI)
+- [ ] v1.2.0 — Instagram Graph API auto-posting
+- [ ] v1.3.0 — Analytics + AI recommendation engine
+- [ ] v1.4.0 — Multi-account, role management
 - [ ] v2.0.0 — Visual carousel generator, n8n automation
 
 ## 📄 License

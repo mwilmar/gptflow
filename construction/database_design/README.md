@@ -76,6 +76,7 @@ CREATE TABLE contents (
     reels_script JSONB,     -- reels script object
     story_frames JSONB,     -- story frames array
     media_urls JSONB DEFAULT '[]',
+    image_url TEXT,
     created_at TIMESTAMPTZ DEFAULT NOW(),
     updated_at TIMESTAMPTZ DEFAULT NOW()
 );

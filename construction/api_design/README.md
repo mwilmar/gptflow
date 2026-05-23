@@ -206,3 +206,28 @@ All endpoints (except auth) require: `Authorization: Bearer <jwt_token>`
 | POST | /webhooks/content-approved | Trigger on approval |
 | POST | /webhooks/post-published | Trigger on publish |
 | POST | /webhooks/post-failed | Trigger on failure |
+
+---
+
+## Image Endpoints (v1.1.0)
+
+| Method | Endpoint | Description | Role |
+|--------|----------|-------------|------|
+| GET | /images/search | Search Unsplash by keyword | creator+ |
+| POST | /upload | Upload image from computer | creator+ |
+| PUT | /content/{id}/image | Set image URL on content | owner |
+
+### GET /api/images/search?query=public+speaking&count=4
+```json
+{
+  "data": [
+    {"id": "abc", "url": "https://images.unsplash.com/...", "thumb": "https://...", "alt": "man speaking"}
+  ]
+}
+```
+
+### POST /api/upload (multipart/form-data)
+```json
+// Response
+{"data": {"url": "/static/uploads/abc123_photo.jpg"}}
+```

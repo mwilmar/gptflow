@@ -218,6 +218,7 @@ async function api(url, method = 'GET', body = null, auth = true) {
   if (auth && token) opts.headers['Authorization'] = 'Bearer ' + token;
   if (body) opts.body = JSON.stringify(body);
   const res = await fetch(url, opts);
+  if (res.status === 401) { localStorage.clear(); token = null; showAuth(); throw new Error('Session expired'); }
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail || 'Error');
   return data;
@@ -245,9 +246,11 @@ async function loadDashboard() {
       <div class="stat-card"><div class="value">${d.approved}</div><div class="label">Approved</div></div>
       <div class="stat-card"><div class="value">${d.scheduled}</div><div class="label">Scheduled</div></div>
       <div class="stat-card"><div class="value">${d.ig_connected ? '✅' : '❌'}</div><div class="label">Instagram</div></div>`;
+  } catch(e) { console.error('Dashboard stats error:', e); }
+  try {
     const contents = await api('/api/content');
-    document.getElementById('recent-content').innerHTML = contents.data.slice(0, 5).map(c => contentCard(c)).join('');
-  } catch(e) { console.error(e); }
+    document.getElementById('recent-content').innerHTML = contents.data.length ? contents.data.slice(0, 5).map(c => contentCard(c, true)).join('') : '<p style="color:var(--muted)">Belum ada konten. Mulai generate di menu ✨ Generate.</p>';
+  } catch(e) { console.error('Dashboard content error:', e); }
 }
 
 // Generate
@@ -273,6 +276,8 @@ async function doGenerate() {
     html += `<div class="actions mt-12"><button class="btn btn-sm btn-primary" onclick="submitContent('${c.id}')">📤 Submit Approval</button><button class="btn btn-sm btn-danger" onclick="deleteContent('${c.id}')">🗑 Delete</button></div></div>`;
     document.getElementById('gen-result').innerHTML = html;
     document.getElementById('gen-result').classList.remove('hidden');
+    // Auto-fetch relevant images
+    fetchImages(res.data.topic, res.data.id);
   } catch(e) { alert('Error: ' + e.message); }
   btn.disabled = false; btn.textContent = '🤖 Generate Content';
 }
@@ -365,10 +370,15 @@ function viewContent(id) {
         </div>
       </div>`;
     } else {
-      html += `<div style="color:white;text-align:center;font-size:24px;padding:40px;">
-        <div style="font-size:48px;margin-bottom:16px;">📸</div>
-        <div style="font-size:14px;color:#a8a8a8;">Image placeholder</div>
-      </div>`;
+      const imgSrc = c.image_url || '';
+      if (imgSrc) {
+        html += `<img src="${imgSrc}" style="width:100%;height:300px;object-fit:cover;">`;
+      } else {
+        html += `<div style="color:white;text-align:center;font-size:24px;padding:40px;" id="ig-preview-img">
+          <div style="font-size:48px;margin-bottom:16px;">📸</div>
+          <div style="font-size:14px;color:#a8a8a8;">Loading image...</div>
+        </div>`;
+      }
     }
 
     html += `</div>
@@ -410,6 +420,15 @@ function viewContent(id) {
       window._slides = c.slides;
       window._currentSlide = 0;
     }
+    // Load image for feed/story preview (only if no image saved)
+    if ((c.content_type === 'feed' || c.content_type === 'story') && !c.image_url) {
+      api(`/api/images/search?query=${encodeURIComponent(c.topic)}&count=1`).then(r => {
+        if (r.data.length) {
+          const el = document.getElementById('ig-preview-img');
+          if (el) el.innerHTML = `<img src="${r.data[0].url}" style="width:100%;height:300px;object-fit:cover;">`;
+        }
+      }).catch(() => {});
+    }
   });
 }
 function nextSlide() {
@@ -428,6 +447,55 @@ function updateSlide() {
   document.getElementById('slide-counter').textContent = `${window._currentSlide+1}/${window._slides.length}`;
 }
 function closeModal() { document.getElementById('modal').classList.add('hidden'); document.getElementById('modal').style.display = 'none'; }
+
+// Image search
+async function fetchImages(query, contentId) {
+  try {
+    const res = await api(`/api/images/search?query=${encodeURIComponent(query)}&count=4`);
+    if (res.data.length) {
+      let imgHtml = `<div class="gen-result" style="margin-top:12px"><h4>📷 Pilih Gambar</h4>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px;margin-top:12px;">`;
+      res.data.forEach(img => {
+        imgHtml += `<img src="${img.thumb}" alt="${img.alt}" style="width:100%;height:120px;object-fit:cover;border-radius:8px;cursor:pointer;border:2px solid transparent;transition:border 0.2s;" onclick="selectImage(this,'${img.url}','${contentId}')" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="if(!this.classList.contains('selected'))this.style.borderColor='transparent'">`;
+      });
+      imgHtml += `</div>
+        <div style="margin-top:12px;display:flex;align-items:center;gap:12px;">
+          <label class="btn btn-sm" style="background:var(--surface2);color:var(--text);cursor:pointer;">
+            📁 Upload dari komputer
+            <input type="file" accept="image/*" style="display:none" onchange="uploadImage(this,'${contentId}')">
+          </label>
+          <span id="img-status" style="color:var(--muted);font-size:0.8rem;"></span>
+        </div>
+        <p style="color:var(--muted);font-size:0.75rem;margin-top:8px;">Klik gambar untuk memilih, atau upload dari komputer.</p>
+      </div>`;
+      document.getElementById('gen-result').innerHTML += imgHtml;
+    }
+  } catch(e) { console.log('Image search unavailable'); }
+}
+
+async function selectImage(el, url, contentId) {
+  document.querySelectorAll('#gen-result img').forEach(i => { i.classList.remove('selected'); i.style.borderColor = 'transparent'; });
+  el.classList.add('selected');
+  el.style.borderColor = 'var(--primary)';
+  // Save to backend
+  await api(`/api/content/${contentId}/image`, 'PUT', { image_url: url });
+  const st = document.getElementById('img-status');
+  if (st) st.textContent = '✅ Gambar tersimpan';
+}
+
+async function uploadImage(input, contentId) {
+  const file = input.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  const res = await fetch('/api/upload', { method: 'POST', headers: { 'Authorization': 'Bearer ' + token }, body: formData });
+  const data = await res.json();
+  if (data.data?.url) {
+    await api(`/api/content/${contentId}/image`, 'PUT', { image_url: data.data.url });
+    const st = document.getElementById('img-status');
+    if (st) st.textContent = '✅ Upload berhasil & tersimpan';
+  }
+}
 
 // Helpers
 function contentCard(c, showActions = false, isApproval = false) {
