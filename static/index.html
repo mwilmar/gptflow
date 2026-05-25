@@ -28,6 +28,17 @@ input,select,textarea{font-family:inherit;font-size:0.9rem;}
 .form-group label{display:block;margin-bottom:4px;color:var(--muted);font-size:0.85rem;}
 .form-group input,.form-group select,.form-group textarea{width:100%;padding:10px 12px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);outline:none;}
 .form-group input:focus,.form-group textarea:focus{border-color:var(--primary);}
+.btn-suggest{background:none;border:1px solid var(--primary);color:var(--primary);border-radius:12px;padding:2px 8px;font-size:11px;cursor:pointer;margin-left:8px;transition:background .2s}
+.btn-suggest:hover{background:var(--primary);color:#fff}
+.suggest-chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.suggest-chips .chip{background:var(--surface2);border:1px solid var(--border);border-radius:16px;padding:6px 12px;font-size:12px;cursor:pointer;color:var(--text);transition:border-color .2s}
+.suggest-chips .chip:hover{border-color:var(--primary);color:var(--primary)}
+.img-picker{background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px}
+.img-picker-btns{display:flex;gap:8px;flex-wrap:wrap}
+.img-picker-btns .btn-sm{font-size:12px}
+.unsplash-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.unsplash-grid img{width:100%;height:80px;object-fit:cover;border-radius:6px;cursor:pointer;border:2px solid transparent;transition:border .2s}
+.unsplash-grid img:hover{border-color:var(--primary)}
 .btn{padding:10px 20px;border:none;border-radius:6px;font-size:0.9rem;font-weight:600;transition:all 0.2s;}
 .btn-primary{background:var(--primary);color:white;}
 .btn-primary:hover{background:var(--primary-hover);}
@@ -113,11 +124,14 @@ input,select,textarea{font-family:inherit;font-size:0.9rem;}
 <div id="app-page" class="app hidden">
   <div class="sidebar">
     <div class="logo">GPT<span>Flow</span></div>
-    <div class="nav-item active" onclick="showPage('dashboard')">📊 Dashboard</div>
-    <div class="nav-item" onclick="showPage('generate')">✨ Generate</div>
-    <div class="nav-item" onclick="showPage('content')">📝 Content</div>
-    <div class="nav-item" onclick="showPage('calendar')">📅 Calendar</div>
-    <div class="nav-item" onclick="showPage('approval')">✓ Approval</div>
+    <div class="nav-item active" onclick="showPage('dashboard')">1. 📊 Dashboard</div>
+    <div class="nav-item" onclick="showPage('generate')">2. ✨ Generate</div>
+    <div class="nav-item" onclick="showPage('manual')">3. ✏️ Manual</div>
+    <div class="nav-item" onclick="showPage('content')">4. 📝 Content</div>
+    <div class="nav-item" onclick="showPage('calendar')">5. 📅 Calendar</div>
+    <div class="nav-item" onclick="showPage('approval')">6. ✓ Approval</div>
+    <div class="nav-item" onclick="showPage('users')" id="nav-users" style="display:none">7. 👥 Users</div>
+    <div class="nav-item" onclick="showPage('config')">8. ⚙️ Config</div>
     <div style="flex:1"></div>
     <div class="nav-item" onclick="logout()">🚪 Logout</div>
   </div>
@@ -133,18 +147,36 @@ input,select,textarea{font-family:inherit;font-size:0.9rem;}
     <div id="page-generate" class="hidden">
       <div class="page-title">✨ AI Content Generator</div>
       <div style="max-width:600px">
-        <div class="form-group"><label>Topik</label><input id="gen-topic" placeholder="Contoh: Tips Public Speaking"></div>
-        <div class="form-group"><label>Target Audiens</label><input id="gen-audience" placeholder="Contoh: Mahasiswa 18-25 tahun" value="Mahasiswa"></div>
+        <div class="form-group"><label>Topik <button class="btn-suggest" onclick="suggestField('topic')">💡 Usulan AI</button></label><input id="gen-topic" placeholder="Contoh: Tips Public Speaking"><div id="suggest-topic" class="suggest-chips"></div></div>
+        <div class="form-group"><label>Target Audiens <button class="btn-suggest" onclick="suggestField('audience')">💡 Usulan AI</button></label><input id="gen-audience" placeholder="Contoh: Mahasiswa 18-25 tahun" value="Mahasiswa"><div id="suggest-audience" class="suggest-chips"></div></div>
         <div class="form-group"><label>Gaya Bahasa</label>
           <select id="gen-tone"><option value="casual_edukatif">Casual Edukatif</option><option value="formal">Formal</option><option value="fun">Fun & Playful</option></select>
         </div>
         <div class="form-group"><label>Jenis Konten</label>
           <select id="gen-type"><option value="feed">Feed (Caption)</option><option value="carousel">Carousel</option><option value="reels">Reels Script</option><option value="story">Story</option></select>
         </div>
-        <div class="form-group"><label>Konteks Tambahan (opsional)</label><textarea id="gen-context" rows="2" placeholder="Instruksi tambahan..."></textarea></div>
+        <div class="form-group"><label>Konteks Tambahan <button class="btn-suggest" onclick="suggestField('context')">💡 Usulan AI</button></label><textarea id="gen-context" rows="2" placeholder="Instruksi tambahan..."></textarea><div id="suggest-context" class="suggest-chips"></div></div>
+        <div class="form-group"><label>Gambar</label><div class="img-picker"><div class="img-picker-btns"><button class="btn btn-sm" onclick="searchUnsplash('gen')">🔍 Pilih Gambar</button><button class="btn btn-sm" onclick="document.getElementById('gen-img-file').click()">📁 Upload</button><button class="btn btn-sm" onclick="generateAIImageFor('gen')">🎨 Generate AI</button></div><input type="file" id="gen-img-file" accept="image/*" onchange="previewImg(this,'gen')" style="display:none"><div id="gen-img-preview" style="margin-top:8px"></div></div></div>
         <button class="btn btn-primary" onclick="doGenerate()" id="gen-btn">🤖 Generate Content</button>
       </div>
       <div id="gen-result" class="hidden"></div>
+    </div>
+    <!-- Manual Content -->
+    <div id="page-manual" class="hidden">
+      <div class="page-title">✏️ Buat Konten Manual</div>
+      <div style="max-width:600px">
+        <div class="form-group"><label>Jenis Konten</label>
+          <select id="man-type" onchange="updateManualFields()">
+            <option value="">-- Pilih jenis --</option>
+            <option value="feed">Feed (Caption)</option>
+            <option value="carousel">Carousel</option>
+            <option value="reels">Reels Script</option>
+            <option value="story">Story</option>
+          </select>
+        </div>
+        <div id="manual-fields"></div>
+        <button class="btn btn-primary hidden" id="man-save-btn" onclick="saveManualContent()">💾 Simpan sebagai Draft</button>
+      </div>
     </div>
     <!-- Content List -->
     <div id="page-content" class="hidden">
@@ -164,6 +196,39 @@ input,select,textarea{font-family:inherit;font-size:0.9rem;}
     <div id="page-approval" class="hidden">
       <div class="page-title">✓ Pending Approval</div>
       <div class="content-list" id="approval-list"></div>
+    </div>
+    <!-- Users Management -->
+    <div id="page-users" class="hidden">
+      <div class="page-title">👥 User Management</div>
+      <div class="content-list" id="users-list"></div>
+    </div>
+    <!-- Config -->
+    <div id="page-config" class="hidden">
+      <div class="page-title">⚙️ API Configuration</div>
+      <div style="max-width:600px">
+        <div style="background:var(--surface2);border-radius:8px;padding:16px;margin-bottom:20px;font-size:13px;color:var(--muted);line-height:1.7">
+          <b style="color:var(--text)">💡 Petunjuk:</b><br>
+          • <b>Groq API Key</b> (gratis): Daftar di <a href="https://console.groq.com" target="_blank" style="color:var(--primary)">console.groq.com</a> → API Keys → Create<br>
+          • <b>OpenAI API Key</b> (berbayar, untuk generate gambar AI): Daftar di <a href="https://platform.openai.com/api-keys" target="_blank" style="color:var(--primary)">platform.openai.com</a> → API Keys → Create<br>
+          • Key pribadi Anda akan digunakan sebagai prioritas. Jika kosong, sistem menggunakan key default.<br>
+          • Jika muncul error "quota habis", silakan top-up di dashboard provider.
+        </div>
+        <div class="form-group"><label>Groq API Key <span id="cfg-groq-status"></span></label><input id="cfg-groq" type="password" placeholder="gsk_..."></div>
+        <div class="form-group"><label>OpenAI API Key <span id="cfg-openai-status"></span></label><input id="cfg-openai" type="password" placeholder="sk-proj-..."></div>
+        <hr style="border-color:var(--border);margin:20px 0">
+        <div style="background:var(--surface2);border-radius:8px;padding:16px;margin-bottom:20px;font-size:13px;color:var(--muted);line-height:1.7">
+          <b style="color:var(--text)">📱 Instagram Integration:</b><br>
+          • Buat Facebook App di <a href="https://developers.facebook.com" target="_blank" style="color:var(--primary)">developers.facebook.com</a><br>
+          • Tambahkan produk "Instagram Graph API"<br>
+          • Buat Instagram Business Account (hubungkan ke Facebook Page)<br>
+          • Generate Long-Lived Access Token dari Graph API Explorer
+        </div>
+        <div class="form-group"><label>Instagram App ID <span id="cfg-ig-id-status"></span></label><input id="cfg-ig-app-id" placeholder="123456789..."></div>
+        <div class="form-group"><label>Instagram App Secret <span id="cfg-ig-secret-status"></span></label><input id="cfg-ig-app-secret" type="password" placeholder="abc123..."></div>
+        <div class="form-group"><label>Instagram Access Token <span id="cfg-ig-token-status"></span></label><input id="cfg-ig-token" type="password" placeholder="IGQV..."></div>
+        <button class="btn btn-primary" onclick="saveConfig()">💾 Simpan</button>
+        <span id="cfg-status" style="margin-left:12px;font-size:13px"></span>
+      </div>
     </div>
   </div>
 </div>
@@ -185,7 +250,98 @@ let isRegister = false;
 if (token && user) { showApp(); } else { showAuth(); }
 
 function showAuth() { document.getElementById('auth-page').classList.remove('hidden'); document.getElementById('app-page').classList.add('hidden'); }
-function showApp() { document.getElementById('auth-page').classList.add('hidden'); document.getElementById('app-page').classList.remove('hidden'); loadDashboard(); }
+function showApp() { document.getElementById('auth-page').classList.add('hidden'); document.getElementById('app-page').classList.remove('hidden'); if(user && (user.role==='admin'||user.role==='manager')) document.getElementById('nav-users').style.display=''; loadDashboard(); showOnboardingTips(); }
+
+function showOnboardingTips() {
+  if (localStorage.getItem('gptflow_onboarded')) return;
+  const steps = [
+    { target: '.nav-item:nth-child(2)', text: '✨ Klik <b>Generate</b> untuk membuat konten AI pertama Anda', position: 'right' },
+    { target: '.nav-item:nth-child(3)', text: '📝 Konten yang sudah dibuat bisa dilihat di <b>Content</b>', position: 'right' },
+    { target: '.nav-item:nth-child(4)', text: '📅 Lihat jadwal posting di <b>Calendar</b>', position: 'right' },
+    { target: '.nav-item:nth-child(5)', text: '✓ Manager approve/reject konten di <b>Approval</b>', position: 'right' },
+  ];
+  let current = 0;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'onboarding-tips';
+  overlay.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;z-index:9998;pointer-events:none';
+  document.body.appendChild(overlay);
+
+  const backdrop = document.createElement('div');
+  backdrop.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.6);z-index:9997';
+  document.body.appendChild(backdrop);
+  backdrop.id = 'onboarding-backdrop';
+
+  const tooltip = document.createElement('div');
+  tooltip.id = 'onboarding-tooltip';
+  tooltip.style.cssText = 'position:fixed;z-index:9999;background:#1e1e2e;border:1px solid #7c5cfc;border-radius:12px;padding:16px 20px;max-width:320px;color:#e0e0e0;box-shadow:0 8px 32px rgba(124,92,252,.3)';
+  document.body.appendChild(tooltip);
+
+  function showStep() {
+    const el = document.querySelector(steps[current].target);
+    if (!el) { finish(); return; }
+    const rect = el.getBoundingClientRect();
+
+    // Highlight target
+    el.style.position = 'relative';
+    el.style.zIndex = '9999';
+    el.style.boxShadow = '0 0 0 4px #7c5cfc, 0 0 20px rgba(124,92,252,.5)';
+    el.style.borderRadius = '8px';
+
+    // Position tooltip
+    tooltip.innerHTML = `
+      <div style="font-size:14px;line-height:1.6;margin-bottom:12px">${steps[current].text}</div>
+      <div style="display:flex;justify-content:space-between;align-items:center">
+        <span style="color:#888;font-size:12px">${current + 1} / ${steps.length}</span>
+        <div>
+          <label style="color:#888;font-size:12px;cursor:pointer;margin-right:12px"><input type="checkbox" id="onboarding-hide" style="margin-right:4px;cursor:pointer">Tidak tampilkan lagi</label>
+          <button onclick="nextOnboardingStep()" style="background:#7c5cfc;color:#fff;border:none;border-radius:6px;padding:8px 16px;cursor:pointer;font-size:13px;font-weight:600">${current < steps.length - 1 ? 'Lanjut →' : 'Selesai ✓'}</button>
+        </div>
+      </div>`;
+    tooltip.style.top = (rect.top + rect.height / 2 - 40) + 'px';
+    tooltip.style.left = (rect.right + 16) + 'px';
+  }
+
+  function clearHighlight() {
+    const el = document.querySelector(steps[current].target);
+    if (el) { el.style.zIndex = ''; el.style.boxShadow = ''; el.style.position = ''; el.style.borderRadius = ''; }
+  }
+
+  window.nextOnboardingStep = function() {
+    const hideCheck = document.getElementById('onboarding-hide');
+    if (hideCheck && hideCheck.checked) localStorage.setItem('gptflow_onboarded', '1');
+    clearHighlight();
+    current++;
+    if (current >= steps.length) { finish(); return; }
+    showStep();
+  };
+
+  window.skipOnboarding = function() {
+    clearHighlight();
+    localStorage.setItem('gptflow_onboarded', '1');
+    finish();
+  };
+
+  function finish() {
+    const t = document.getElementById('onboarding-tooltip'); if (t) t.remove();
+    const o = document.getElementById('onboarding-tips'); if (o) o.remove();
+    const b = document.getElementById('onboarding-backdrop'); if (b) b.remove();
+  }
+
+  showStep();
+}
+
+function dismissOnboarding() {
+  const el = document.getElementById('onboarding-tips');
+  if (el) el.remove();
+  const t = document.getElementById('onboarding-tooltip'); if (t) t.remove();
+  const b = document.getElementById('onboarding-backdrop'); if (b) b.remove();
+}
+
+function dismissOnboardingForever() {
+  localStorage.setItem('gptflow_onboarded', '1');
+  dismissOnboarding();
+}
 
 function toggleAuth() {
   isRegister = !isRegister;
@@ -206,11 +362,11 @@ async function doAuth() {
     token = res.data.token; user = res.data.user;
     localStorage.setItem('gptflow_token', token);
     localStorage.setItem('gptflow_user', JSON.stringify(user));
-    showApp();
-  } catch (e) { document.getElementById('auth-error').textContent = e.message; }
+    if (isRegister) localStorage.removeItem('gptflow_onboarded');
+    showApp();  } catch (e) { document.getElementById('auth-error').textContent = e.message; }
 }
 
-function logout() { localStorage.clear(); token = null; user = null; showAuth(); }
+function logout() { localStorage.clear(); token = null; user = null; document.getElementById('nav-users').style.display='none'; showAuth(); }
 
 // API helper
 async function api(url, method = 'GET', body = null, auth = true) {
@@ -226,12 +382,49 @@ async function api(url, method = 'GET', body = null, auth = true) {
 
 // Navigation
 function showPage(page) {
-  document.querySelectorAll('.nav-item').forEach((el, i) => el.classList.toggle('active', el.textContent.includes(page === 'dashboard' ? 'Dashboard' : page === 'generate' ? 'Generate' : page === 'content' ? 'Content' : page === 'calendar' ? 'Calendar' : 'Approval')));
-  ['dashboard','generate','content','calendar','approval'].forEach(p => document.getElementById('page-'+p).classList.toggle('hidden', p !== page));
+  document.querySelectorAll('.nav-item').forEach((el, i) => el.classList.toggle('active', el.textContent.includes(page === 'dashboard' ? 'Dashboard' : page === 'generate' ? 'Generate' : page === 'manual' ? 'Manual' : page === 'content' ? 'Content' : page === 'calendar' ? 'Calendar' : page === 'users' ? 'Users' : 'Approval')));
+  ['dashboard','generate','manual','content','calendar','approval','users','config'].forEach(p => document.getElementById('page-'+p).classList.toggle('hidden', p !== page));
   if (page === 'dashboard') loadDashboard();
   if (page === 'content') loadContent();
   if (page === 'calendar') loadCalendar();
   if (page === 'approval') loadApproval();
+  if (page === 'users') loadUsers();
+  if (page === 'config') loadConfig();
+  showPageTip(page);
+}
+
+const PAGE_TIPS = {
+  dashboard: { icon: '📊', title: 'Dashboard', tips: ['Lihat ringkasan semua konten: draft, pending, approved, scheduled', 'Klik konten di "Terbaru" untuk lihat detail', 'Angka di atas menunjukkan total per status'] },
+  generate: { icon: '✨', title: 'Generate Content', tips: ['Isi topik sespesifik mungkin untuk hasil terbaik', 'Pilih tipe konten: Feed, Carousel, Reels, atau Story', 'Klik Generate → review hasil → edit jika perlu', 'Tidak puas? Generate ulang tanpa isi form lagi'] },
+  manual: { icon: '✏️', title: 'Buat Manual', tips: ['Pilih jenis konten dulu — field akan menyesuaikan', 'Carousel: tentukan jumlah slide, isi per slide', 'Reels: isi hook, script, durasi, visual direction', 'Story: tambahkan interaksi (poll/quiz/question)'] },
+  content: { icon: '📝', title: 'Semua Konten', tips: ['Filter berdasarkan status (Draft, Pending, Approved, dll)', 'Klik konten untuk lihat detail & preview', 'Konten draft bisa di-edit dan submit untuk approval'] },
+  calendar: { icon: '📅', title: 'Content Calendar', tips: ['Lihat jadwal posting dalam tampilan kalender bulanan', 'Warna berbeda menunjukkan tipe konten berbeda', 'Pastikan posting konsisten (misal 3x/minggu)'] },
+  approval: { icon: '✓', title: 'Approval', tips: ['Konten yang di-submit staff muncul di sini', 'Klik untuk review → Approve atau Reject dengan catatan', 'Hanya role Manager/Admin yang bisa approve'] },
+  users: { icon: '👥', title: 'User Management', tips: ['Lihat semua user yang terdaftar', 'Ubah role user: Creator, Manager, atau Admin', 'Hanya Admin yang bisa mengubah role'] },
+  config: { icon: '⚙️', title: 'API Configuration', tips: ['Masukkan API key pribadi Anda di sini', 'Groq (gratis): untuk generate teks konten', 'OpenAI (berbayar): untuk generate gambar AI (DALL-E)', 'Instagram: untuk auto-posting ke IG', '✅ = key valid & berfungsi, ❌ = belum diset atau tidak valid', 'Pengecekan otomatis saat buka halaman ini dan setelah simpan'] },
+};
+
+function showPageTip(page) {
+  if (localStorage.getItem('gptflow_tip_' + page)) return;
+  const tip = PAGE_TIPS[page];
+  if (!tip) return;
+  const existing = document.getElementById('page-tip-banner');
+  if (existing) existing.remove();
+  const banner = document.createElement('div');
+  banner.id = 'page-tip-banner';
+  banner.style.cssText = 'background:#2a2a3e;border:1px solid #7c5cfc;border-radius:10px;padding:14px 20px;margin-bottom:16px;display:flex;align-items:flex-start;gap:12px;animation:slideUp .3s ease';
+  banner.innerHTML = `
+    <span style="font-size:24px">${tip.icon}</span>
+    <div style="flex:1">
+      <div style="font-weight:600;color:#7c5cfc;margin-bottom:6px">Tips: ${tip.title}</div>
+      <ul style="margin:0;padding-left:18px;color:#aaa;font-size:13px;line-height:1.8">${tip.tips.map(t => '<li>' + t + '</li>').join('')}</ul>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:4px;align-items:flex-end">
+      <button onclick="this.parentElement.parentElement.remove()" style="background:none;border:none;color:#888;cursor:pointer;font-size:16px">✕</button>
+      <label style="font-size:11px;color:#666;cursor:pointer;white-space:nowrap"><input type="checkbox" onchange="if(this.checked)localStorage.setItem('gptflow_tip_${page}','1')" style="margin-right:4px">Jangan tampilkan</label>
+    </div>`;
+  const pageEl = document.getElementById('page-' + page);
+  pageEl.insertBefore(banner, pageEl.children[1] || null);
 }
 
 // Dashboard
@@ -254,6 +447,245 @@ async function loadDashboard() {
 }
 
 // Generate
+async function suggestField(field) {
+  const container = document.getElementById('suggest-' + field);
+  container.innerHTML = '<span style="color:var(--muted);font-size:12px">⏳ Memuat usulan...</span>';
+  const context = {
+    topic: document.getElementById('gen-topic').value,
+    audience: document.getElementById('gen-audience').value,
+    tone: document.getElementById('gen-tone').value,
+    content_type: document.getElementById('gen-type').value,
+    context: document.getElementById('gen-context').value,
+  };
+  try {
+    const res = await api(`/api/suggest/${field}`, 'POST', context);
+    const inputId = field === 'topic' ? 'gen-topic' : field === 'audience' ? 'gen-audience' : 'gen-context';
+    container.innerHTML = res.data.map(s => `<span class="chip" onclick="document.getElementById('${inputId}').value='${s.replace(/'/g,"\\'")}';this.parentElement.innerHTML=''">${s}</span>`).join('');
+  } catch(e) { container.innerHTML = '<span style="color:#f66;font-size:12px">Gagal memuat</span>'; }
+}
+
+// Manual Content
+let manualImageUrl = '';
+
+function previewImg(input, target) {
+  if (input.files && input.files[0]) {
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      if (target === 'gen') genImageUrl = e.target.result;
+      else manualImageUrl = e.target.result;
+      document.getElementById(target + '-img-preview').innerHTML = `<img src="${e.target.result}" style="max-width:200px;border-radius:8px">`;
+    };
+    reader.readAsDataURL(input.files[0]);
+  }
+}
+
+let genImageUrl = '';
+
+async function generateAIImageFor(target) {
+  const topic = document.getElementById(target === 'gen' ? 'gen-topic' : 'man-topic')?.value || '';
+  if (!topic) { alert('Isi topik terlebih dahulu'); return; }
+  const preview = document.getElementById(target + '-img-preview');
+  preview.innerHTML = '<span style="color:var(--muted);font-size:12px">🎨 Generating image...</span>';
+  try {
+    const res = await api('/api/generate-image', 'POST', { prompt: `Instagram post image for: "${topic}". Modern, clean, professional design. No text.` });
+    if (target === 'gen') genImageUrl = res.data.url;
+    else manualImageUrl = res.data.url;
+    preview.innerHTML = `<img src="${res.data.url}" style="max-width:200px;border-radius:8px">`;
+  } catch(e) {
+    preview.innerHTML = '';
+    if (e.message.includes('quota') || e.message.includes('API key')) showQuotaPopup(e.message);
+    else alert('Error: ' + e.message);
+  }
+}
+
+async function searchUnsplash(target) {
+  const topic = document.getElementById(target === 'gen' ? 'gen-topic' : 'man-topic')?.value || 'instagram';
+  const preview = document.getElementById(target + '-img-preview');
+  preview.innerHTML = '<span style="color:var(--muted);font-size:12px">🔍 Mencari gambar...</span>';
+  try {
+    const res = await api(`/api/unsplash/search?q=${encodeURIComponent(topic)}`);
+    if (res.data && res.data.length) {
+      preview.innerHTML = `<div class="unsplash-grid">${res.data.map(img => `<img src="${img.thumb}" data-url="${img.url}" onclick="selectUnsplash(this,'${target}')">`).join('')}</div>`;
+    } else {
+      preview.innerHTML = '<span style="color:var(--muted);font-size:12px">Tidak ada hasil</span>';
+    }
+  } catch(e) { preview.innerHTML = '<span style="color:#f66;font-size:12px">Gagal mencari</span>'; }
+}
+
+function selectUnsplash(img, target) {
+  const url = img.dataset.url;
+  if (target === 'gen') genImageUrl = url;
+  else manualImageUrl = url;
+  document.getElementById(target + '-img-preview').innerHTML = `<img src="${url}" style="max-width:200px;border-radius:8px">`;
+}
+
+function previewManualImg(input) { previewImg(input, 'man'); }
+
+async function suggestManual(field) {
+  const container = document.getElementById('man-suggest-' + field);
+  if (!container) return;
+  container.innerHTML = '<span style="color:var(--muted);font-size:12px">⏳ Memuat...</span>';
+  const type = document.getElementById('man-type')?.value || 'feed';
+  const topic = document.getElementById('man-topic')?.value || '';
+  const caption = document.getElementById('man-caption')?.value || '';
+  const context = { topic, content_type: type, caption };
+  const fieldMap = { topic:'man-topic', caption:'man-caption', hashtags:'man-hashtags', cta:'man-cta', hook:'man-hook', script:'man-script', visual:'man-visual', interaction:'man-interaction-detail' };
+  const inputId = fieldMap[field] || 'man-topic';
+  const isTextarea = ['caption','script','visual'].includes(field);
+  try {
+    const res = await api(`/api/suggest-manual/${field}`, 'POST', context);
+    container.innerHTML = res.data.map(s => {
+      const escaped = s.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+      return `<span class="chip" onclick="${isTextarea ? `document.getElementById('${inputId}').value='${escaped}'` : `document.getElementById('${inputId}').value='${escaped}'`};this.parentElement.innerHTML=''">${s}</span>`;
+    }).join('');
+  } catch(e) { container.innerHTML = '<span style="color:#f66;font-size:12px">Gagal</span>'; }
+}
+function showQuotaPopup(msg) {
+  const popup = document.createElement('div');
+  popup.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center';
+  popup.innerHTML = `<div style="background:var(--surface);border:1px solid var(--danger);border-radius:12px;padding:24px;max-width:420px;width:90%">
+    <h3 style="color:var(--danger);margin-bottom:12px">⚠️ API Key Issue</h3>
+    <p style="color:var(--text);margin-bottom:16px;line-height:1.6">${msg}</p>
+    <p style="color:var(--muted);font-size:13px;margin-bottom:16px">Buka menu <b>⚙️ Config</b> untuk mengatur API key pribadi Anda.</p>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="this.closest('div[style]').remove();showPage('config')" style="flex:1">⚙️ Buka Config</button>
+      <button class="btn" onclick="this.closest('div[style]').remove()" style="flex:1">Tutup</button>
+    </div>
+  </div>`;
+  document.body.appendChild(popup);
+}
+
+// Config
+async function loadConfig() {
+  try {
+    const res = await api('/api/settings');
+    const d = res.data;
+    document.getElementById('cfg-groq').value = '';
+    document.getElementById('cfg-openai').value = '';
+    document.getElementById('cfg-ig-app-id').value = '';
+    document.getElementById('cfg-ig-app-secret').value = '';
+    document.getElementById('cfg-ig-token').value = '';
+    document.getElementById('cfg-groq').placeholder = d.groq_api_key || 'gsk_...';
+    document.getElementById('cfg-openai').placeholder = d.openai_api_key || 'sk-proj-...';
+    document.getElementById('cfg-ig-app-id').placeholder = d.ig_app_id || '123456789...';
+    document.getElementById('cfg-ig-app-secret').placeholder = d.ig_app_secret || 'abc123...';
+    document.getElementById('cfg-ig-token').placeholder = d.ig_access_token || 'IGQV...';
+    // Verify keys
+    const v = await api('/api/settings/verify');
+    document.getElementById('cfg-groq-status').innerHTML = v.data.groq ? '<span style="color:#10b981">✅</span>' : '<span style="color:#ef4444">❌</span>';
+    document.getElementById('cfg-openai-status').innerHTML = v.data.openai ? '<span style="color:#10b981">✅</span>' : '<span style="color:#ef4444">❌</span>';
+    document.getElementById('cfg-ig-id-status').innerHTML = d.ig_app_id ? '<span style="color:#10b981">✅</span>' : '<span style="color:#ef4444">❌</span>';
+    document.getElementById('cfg-ig-secret-status').innerHTML = d.ig_app_secret ? '<span style="color:#10b981">✅</span>' : '<span style="color:#ef4444">❌</span>';
+    document.getElementById('cfg-ig-token-status').innerHTML = v.data.ig ? '<span style="color:#10b981">✅</span>' : '<span style="color:#ef4444">❌</span>';
+  } catch(e) {}
+}
+
+function maskKey(key) {
+  if (!key || key.length < 8) return '••••••';
+  return key.slice(0, 4) + '••••••••' + key.slice(-4);
+}
+
+async function saveConfig() {
+  const data = {};
+  const groq = document.getElementById('cfg-groq').value.trim();
+  const openai = document.getElementById('cfg-openai').value.trim();
+  const igId = document.getElementById('cfg-ig-app-id').value.trim();
+  const igSecret = document.getElementById('cfg-ig-app-secret').value.trim();
+  const igToken = document.getElementById('cfg-ig-token').value.trim();
+  if (groq) data.groq_api_key = groq;
+  if (openai) data.openai_api_key = openai;
+  if (igId) data.ig_app_id = igId;
+  if (igSecret) data.ig_app_secret = igSecret;
+  if (igToken) data.ig_access_token = igToken;
+  if (!Object.keys(data).length) { document.getElementById('cfg-status').textContent = '⚠️ Isi field yang ingin diubah'; return; }
+  try {
+    await api('/api/settings', 'PUT', data);
+    document.getElementById('cfg-status').textContent = '✅ Tersimpan!';
+    setTimeout(() => { document.getElementById('cfg-status').textContent = ''; loadConfig(); }, 1500);
+  } catch(e) { document.getElementById('cfg-status').textContent = '❌ ' + e.message; }
+}
+
+function updateManualFields() {
+  const type = document.getElementById('man-type').value;
+  const container = document.getElementById('manual-fields');
+  const btn = document.getElementById('man-save-btn');
+  if (!type) { container.innerHTML = ''; btn.classList.add('hidden'); return; }
+  btn.classList.remove('hidden');
+  const fields = {
+    feed: `
+      <div class="form-group"><label>Topik/Judul <button class="btn-suggest" onclick="suggestManual('topic')">💡 Usulan AI</button></label><input id="man-topic" placeholder="Judul konten"><div id="man-suggest-topic" class="suggest-chips"></div></div>
+      <div class="form-group"><label>Caption <button class="btn-suggest" onclick="suggestManual('caption')">💡 Usulan AI</button></label><textarea id="man-caption" rows="6" placeholder="Tulis caption..."></textarea><div id="man-suggest-caption" class="suggest-chips"></div></div>
+      <div class="form-group"><label>Hashtags <button class="btn-suggest" onclick="suggestManual('hashtags')">💡 Usulan AI</button></label><input id="man-hashtags" placeholder="#tips #instagram #marketing"><div id="man-suggest-hashtags" class="suggest-chips"></div></div>
+      <div class="form-group"><label>CTA <button class="btn-suggest" onclick="suggestManual('cta')">💡 Usulan AI</button></label><input id="man-cta" placeholder="Contoh: Save post ini!"><div id="man-suggest-cta" class="suggest-chips"></div></div>
+      <div class="form-group"><label>Gambar</label><div class="img-picker"><div class="img-picker-btns"><button class="btn btn-sm" onclick="searchUnsplash('man')">🔍 Pilih Gambar</button><button class="btn btn-sm" onclick="document.getElementById('man-img-file').click()">📁 Upload</button><button class="btn btn-sm" onclick="generateAIImageFor('man')">🎨 Generate AI</button></div><input type="file" id="man-img-file" accept="image/*" onchange="previewImg(this,'man')" style="display:none"><div id="man-img-preview" style="margin-top:8px"></div></div></div>`,
+    carousel: `
+      <div class="form-group"><label>Topik/Judul <button class="btn-suggest" onclick="suggestManual('topic')">💡 Usulan AI</button></label><input id="man-topic" placeholder="Judul carousel"><div id="man-suggest-topic" class="suggest-chips"></div></div>
+      <div class="form-group"><label>Jumlah Slide</label><input type="number" id="man-slides" min="3" max="10" value="5" onchange="generateSlideFields()"></div>
+      <div id="man-slide-fields"></div>
+      <div class="form-group"><label>Hashtags <button class="btn-suggest" onclick="suggestManual('hashtags')">💡 Usulan AI</button></label><input id="man-hashtags" placeholder="#tips #carousel"><div id="man-suggest-hashtags" class="suggest-chips"></div></div>
+      <div class="form-group"><label>Cover Image</label><div class="img-picker"><div class="img-picker-btns"><button class="btn btn-sm" onclick="searchUnsplash('man')">🔍 Pilih Gambar</button><button class="btn btn-sm" onclick="document.getElementById('man-img-file').click()">📁 Upload</button><button class="btn btn-sm" onclick="generateAIImageFor('man')">🎨 Generate AI</button></div><input type="file" id="man-img-file" accept="image/*" onchange="previewImg(this,'man')" style="display:none"><div id="man-img-preview" style="margin-top:8px"></div></div></div>`,
+    reels: `
+      <div class="form-group"><label>Topik/Judul <button class="btn-suggest" onclick="suggestManual('topic')">💡 Usulan AI</button></label><input id="man-topic" placeholder="Judul reels"><div id="man-suggest-topic" class="suggest-chips"></div></div>
+      <div class="form-group"><label>Hook <button class="btn-suggest" onclick="suggestManual('hook')">💡 Usulan AI</button></label><input id="man-hook" placeholder="Kalimat pembuka yang menarik perhatian"><div id="man-suggest-hook" class="suggest-chips"></div></div>
+      <div class="form-group"><label>Script/Narasi <button class="btn-suggest" onclick="suggestManual('script')">💡 Usulan AI</button></label><textarea id="man-script" rows="6" placeholder="Tulis script narasi..."></textarea><div id="man-suggest-script" class="suggest-chips"></div></div>
+      <div class="form-group"><label>Durasi (detik)</label><input type="number" id="man-duration" min="15" max="90" value="30"></div>
+      <div class="form-group"><label>Visual Direction <button class="btn-suggest" onclick="suggestManual('visual')">💡 Usulan AI</button></label><textarea id="man-visual" rows="3" placeholder="Deskripsi visual/transisi..."></textarea><div id="man-suggest-visual" class="suggest-chips"></div></div>
+      <div class="form-group"><label>CTA <button class="btn-suggest" onclick="suggestManual('cta')">💡 Usulan AI</button></label><input id="man-cta" placeholder="Follow untuk tips lainnya!"><div id="man-suggest-cta" class="suggest-chips"></div></div>
+      <div class="form-group"><label>Thumbnail</label><div class="img-picker"><div class="img-picker-btns"><button class="btn btn-sm" onclick="searchUnsplash('man')">🔍 Pilih Gambar</button><button class="btn btn-sm" onclick="document.getElementById('man-img-file').click()">📁 Upload</button><button class="btn btn-sm" onclick="generateAIImageFor('man')">🎨 Generate AI</button></div><input type="file" id="man-img-file" accept="image/*" onchange="previewImg(this,'man')" style="display:none"><div id="man-img-preview" style="margin-top:8px"></div></div></div>`,
+    story: `
+      <div class="form-group"><label>Topik/Judul <button class="btn-suggest" onclick="suggestManual('topic')">💡 Usulan AI</button></label><input id="man-topic" placeholder="Judul story"><div id="man-suggest-topic" class="suggest-chips"></div></div>
+      <div class="form-group"><label>Teks Story <button class="btn-suggest" onclick="suggestManual('caption')">💡 Usulan AI</button></label><textarea id="man-caption" rows="3" placeholder="Teks yang muncul di story..."></textarea><div id="man-suggest-caption" class="suggest-chips"></div></div>
+      <div class="form-group"><label>Interaksi</label>
+        <select id="man-interaction"><option value="poll">Poll</option><option value="quiz">Quiz</option><option value="question">Question Box</option><option value="none">Tidak ada</option></select>
+      </div>
+      <div class="form-group"><label>Detail Interaksi <button class="btn-suggest" onclick="suggestManual('interaction')">💡 Usulan AI</button></label><input id="man-interaction-detail" placeholder="Contoh: Setuju / Tidak setuju"><div id="man-suggest-interaction" class="suggest-chips"></div></div>
+      <div class="form-group"><label>CTA <button class="btn-suggest" onclick="suggestManual('cta')">💡 Usulan AI</button></label><input id="man-cta" placeholder="Swipe up! / Tap link"><div id="man-suggest-cta" class="suggest-chips"></div></div>
+      <div class="form-group"><label>Background Image</label><div class="img-picker"><div class="img-picker-btns"><button class="btn btn-sm" onclick="searchUnsplash('man')">🔍 Pilih Gambar</button><button class="btn btn-sm" onclick="document.getElementById('man-img-file').click()">📁 Upload</button><button class="btn btn-sm" onclick="generateAIImageFor('man')">🎨 Generate AI</button></div><input type="file" id="man-img-file" accept="image/*" onchange="previewImg(this,'man')" style="display:none"><div id="man-img-preview" style="margin-top:8px"></div></div></div>`,
+  };
+  container.innerHTML = fields[type] || '';
+  if (type === 'carousel') generateSlideFields();
+}
+
+function generateSlideFields() {
+  const count = parseInt(document.getElementById('man-slides').value) || 5;
+  const container = document.getElementById('man-slide-fields');
+  let html = '';
+  for (let i = 1; i <= count; i++) {
+    const label = i === 1 ? 'Cover' : i === count ? `Slide ${i} (CTA)` : `Slide ${i}`;
+    html += `<div class="form-group"><label>${label}</label><input id="man-slide-${i}" placeholder="Isi slide ${i}..."></div>`;
+  }
+  container.innerHTML = html;
+}
+
+async function saveManualContent() {
+  const type = document.getElementById('man-type').value;
+  const topic = document.getElementById('man-topic')?.value || '';
+  if (!topic) { alert('Isi topik/judul terlebih dahulu'); return; }
+
+  let body = '';
+  if (type === 'feed') {
+    body = (document.getElementById('man-caption')?.value || '') + '\n\n' + (document.getElementById('man-hashtags')?.value || '') + '\n\nCTA: ' + (document.getElementById('man-cta')?.value || '');
+  } else if (type === 'carousel') {
+    const count = parseInt(document.getElementById('man-slides').value) || 5;
+    const slides = [];
+    for (let i = 1; i <= count; i++) slides.push(`Slide ${i}: ${document.getElementById('man-slide-'+i)?.value || ''}`);
+    body = slides.join('\n') + '\n\n' + (document.getElementById('man-hashtags')?.value || '');
+  } else if (type === 'reels') {
+    body = `Hook: ${document.getElementById('man-hook')?.value || ''}\n\nScript:\n${document.getElementById('man-script')?.value || ''}\n\nDurasi: ${document.getElementById('man-duration')?.value || 30}s\nVisual: ${document.getElementById('man-visual')?.value || ''}\nCTA: ${document.getElementById('man-cta')?.value || ''}`;
+  } else if (type === 'story') {
+    body = `${document.getElementById('man-caption')?.value || ''}\n\nInteraksi: ${document.getElementById('man-interaction')?.value || 'none'} — ${document.getElementById('man-interaction-detail')?.value || ''}\nCTA: ${document.getElementById('man-cta')?.value || ''}`;
+  }
+
+  try {
+    await api('/api/content/manual', 'POST', { content_type: type, topic, body, image_url: manualImageUrl });
+    alert('✅ Konten disimpan sebagai Draft!');
+    manualImageUrl = '';
+    document.getElementById('man-type').value = '';
+    updateManualFields();
+    showPage('content');
+  } catch(e) { alert('Error: ' + e.message); }
+}
+
 async function doGenerate() {
   const btn = document.getElementById('gen-btn');
   btn.disabled = true; btn.textContent = '⏳ Generating...';
@@ -276,8 +708,6 @@ async function doGenerate() {
     html += `<div class="actions mt-12"><button class="btn btn-sm btn-primary" onclick="submitContent('${c.id}')">📤 Submit Approval</button><button class="btn btn-sm btn-danger" onclick="deleteContent('${c.id}')">🗑 Delete</button></div></div>`;
     document.getElementById('gen-result').innerHTML = html;
     document.getElementById('gen-result').classList.remove('hidden');
-    // Auto-fetch relevant images
-    fetchImages(res.data.topic, res.data.id);
   } catch(e) { alert('Error: ' + e.message); }
   btn.disabled = false; btn.textContent = '🤖 Generate Content';
 }
@@ -294,6 +724,30 @@ async function loadContent() {
 async function loadApproval() {
   const res = await api('/api/content?status=pending_approval');
   document.getElementById('approval-list').innerHTML = res.data.length ? res.data.map(c => contentCard(c, true, true)).join('') : '<p style="color:var(--muted)">Tidak ada konten pending.</p>';
+}
+
+// Users Management
+async function loadUsers() {
+  const res = await api('/api/users');
+  document.getElementById('users-list').innerHTML = res.data.map(u => `
+    <div class="card" style="display:flex;align-items:center;justify-content:space-between;padding:16px;margin-bottom:8px">
+      <div>
+        <b>${u.name}</b> <span style="color:var(--muted)">(${u.email})</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:8px">
+        <select onchange="changeRole('${u.id}',this.value)" style="padding:6px 10px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px">
+          <option value="creator" ${u.role==='creator'?'selected':''}>Creator</option>
+          <option value="manager" ${u.role==='manager'?'selected':''}>Manager</option>
+          <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
+        </select>
+      </div>
+    </div>`).join('');
+}
+
+async function changeRole(userId, newRole) {
+  try {
+    await api(`/api/users/${userId}/role`, 'PUT', { role: newRole });
+  } catch(e) { alert(e.message); loadUsers(); }
 }
 
 // Calendar
@@ -318,7 +772,29 @@ async function submitContent(id) { await api(`/api/content/${id}/submit`, 'POST'
 async function approveContent(id) { await api(`/api/content/${id}/approve`, 'POST'); alert('Approved!'); loadApproval(); }
 async function rejectContent(id) { const notes = prompt('Catatan penolakan:'); if (notes !== null) { await api(`/api/content/${id}/reject`, 'POST', { notes }); alert('Rejected'); loadApproval(); } }
 async function deleteContent(id) { if (confirm('Hapus konten ini?')) { await api(`/api/content/${id}`, 'DELETE'); loadContent(); loadDashboard(); } }
-async function scheduleContent(id) { const dt = prompt('Jadwal posting (YYYY-MM-DDTHH:MM):', new Date(Date.now()+86400000).toISOString().slice(0,16)); if (dt) { await api(`/api/content/${id}/schedule`, 'POST', { content_id: id, scheduled_at: dt }); alert('Scheduled!'); loadContent(); } }
+async function scheduleContent(id) {
+  const existing = document.getElementById('schedule-picker');
+  if (existing) existing.remove();
+  const picker = document.createElement('div');
+  picker.id = 'schedule-picker';
+  picker.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:9999;display:flex;align-items:center;justify-content:center';
+  const defaultDt = new Date(Date.now()+86400000).toISOString().slice(0,16);
+  picker.innerHTML = `<div style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:24px;width:320px">
+    <h3 style="margin-bottom:16px;color:var(--text)">📅 Jadwal Posting</h3>
+    <div style="margin-bottom:12px"><label style="font-size:13px;color:var(--muted);display:block;margin-bottom:6px">Tanggal</label><input type="date" id="sched-date" value="${defaultDt.slice(0,10)}" style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px"></div>
+    <div style="margin-bottom:20px"><label style="font-size:13px;color:var(--muted);display:block;margin-bottom:6px">Waktu</label><input type="time" id="sched-time" value="${defaultDt.slice(11,16)}" style="width:100%;padding:10px;background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:6px"></div>
+    <div style="display:flex;gap:8px"><button class="btn btn-primary" onclick="confirmSchedule('${id}')" style="flex:1">✓ Schedule</button><button class="btn" onclick="document.getElementById('schedule-picker').remove()" style="flex:1">Batal</button></div>
+  </div>`;
+  document.body.appendChild(picker);
+}
+async function confirmSchedule(id) {
+  const date = document.getElementById('sched-date').value;
+  const time = document.getElementById('sched-time').value;
+  if (!date || !time) { alert('Pilih tanggal dan waktu'); return; }
+  await api(`/api/content/${id}/schedule`, 'POST', { content_id: id, scheduled_at: `${date}T${time}` });
+  document.getElementById('schedule-picker').remove();
+  alert('Scheduled!'); loadContent();
+}
 
 function viewContent(id) {
   api(`/api/content/${id}`).then(res => {

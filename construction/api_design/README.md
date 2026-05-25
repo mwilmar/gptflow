@@ -1,13 +1,27 @@
-# API Design — GPTFlow
+# API Design — GPTFlow v2.0.0
 
 ## Base URL
 ```
-Production: https://api.gptflow.app/api/v1
-Development: http://localhost:8000/api/v1
+Development: http://localhost:8000
 ```
 
 ## Authentication
 All endpoints (except auth) require: `Authorization: Bearer <jwt_token>`
+
+## New Endpoints (v2.0.0)
+
+| Method | Path | Deskripsi |
+|--------|------|-----------|
+| POST | `/api/content/manual` | Simpan konten manual sebagai draft |
+| POST | `/api/suggest/{field}` | AI suggestions untuk Generate form |
+| POST | `/api/suggest-manual/{field}` | AI suggestions untuk Manual form |
+| POST | `/api/generate-image` | Generate gambar AI (OpenAI gpt-image-1) |
+| GET | `/api/unsplash/search?q=` | Search gambar Unsplash |
+| GET | `/api/settings` | Get user settings (masked keys) |
+| PUT | `/api/settings` | Update personal API keys |
+| GET | `/api/settings/verify` | Verify semua API keys (✅/❌) |
+| GET | `/api/users` | List users (admin/manager) |
+| PUT | `/api/users/{id}/role` | Change user role (admin only) |
 
 ## Response Format
 ```json

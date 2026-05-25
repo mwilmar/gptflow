@@ -1,4 +1,4 @@
-# Architecture — GPTFlow
+# Architecture — GPTFlow v2.0.0
 
 ## System Architecture Diagram
 

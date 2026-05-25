@@ -5,7 +5,7 @@ from datetime import datetime, timedelta, timezone
 from contextlib import asynccontextmanager
 from typing import Optional
 
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, Request, status
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, EmailStr
@@ -13,7 +13,6 @@ from pydantic_settings import BaseSettings
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy import String, Text, DateTime, Boolean, Integer, JSON, select, update
-from passlib.context import CryptContext
 from jose import jwt, JWTError
 from openai import AsyncOpenAI
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -57,6 +56,11 @@ class User(Base):
     name: Mapped[str] = mapped_column(String(100))
     role: Mapped[str] = mapped_column(String(20), default="creator")
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    groq_api_key: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    openai_api_key: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    ig_app_id: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    ig_app_secret: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    ig_access_token: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
 class Content(Base):
@@ -85,14 +89,14 @@ class Content(Base):
 
 
 # === AUTH ===
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+import bcrypt as _bcrypt
 security = HTTPBearer()
 
 def hash_password(password: str) -> str:
-    return pwd_context.hash(password)
+    return _bcrypt.hashpw(password.encode(), _bcrypt.gensalt()).decode()
 
 def verify_password(plain: str, hashed: str) -> bool:
-    return pwd_context.verify(plain, hashed)
+    return _bcrypt.checkpw(plain.encode(), hashed.encode())
 
 def create_token(user_id: str, role: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(minutes=settings.jwt_expire_minutes)
@@ -261,7 +265,215 @@ async def login(req: LoginRequest, db: AsyncSession = Depends(get_db)):
     return {"data": {"token": token, "user": {"id": user.id, "name": user.name, "email": user.email, "role": user.role}}}
 
 
+# === ROUTES: Settings ===
+@app.get("/api/settings")
+async def get_settings(user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.id == user["id"]))
+    u = result.scalar_one()
+    def mask(v):
+        if not v or len(v) < 8: return ""
+        return v[:4] + "••••" + v[-4:]
+    return {"data": {"groq_api_key": mask(u.groq_api_key), "openai_api_key": mask(u.openai_api_key), "ig_app_id": mask(u.ig_app_id), "ig_app_secret": mask(u.ig_app_secret), "ig_access_token": mask(u.ig_access_token)}}
+
+@app.get("/api/settings/verify")
+async def verify_settings(user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    result = await db.execute(select(User).where(User.id == user["id"]))
+    u = result.scalar_one()
+    groq_ok, openai_ok, ig_ok = False, False, False
+    # Verify Groq
+    key = u.groq_api_key or settings.groq_api_key
+    if key:
+        try:
+            async with httpx.AsyncClient() as c:
+                r = await c.get("https://api.groq.com/openai/v1/models", headers={"Authorization": f"Bearer {key}"}, timeout=5.0)
+                groq_ok = r.status_code == 200
+        except: pass
+    # Verify OpenAI
+    key = u.openai_api_key or settings.openai_api_key
+    if key:
+        try:
+            async with httpx.AsyncClient() as c:
+                r = await c.get("https://api.openai.com/v1/models", headers={"Authorization": f"Bearer {key}"}, timeout=5.0)
+                openai_ok = r.status_code == 200
+        except: pass
+    # Verify IG
+    if u.ig_access_token:
+        try:
+            async with httpx.AsyncClient() as c:
+                r = await c.get(f"https://graph.instagram.com/me?access_token={u.ig_access_token}", timeout=5.0)
+                ig_ok = r.status_code == 200
+        except: pass
+    return {"data": {"groq": groq_ok, "openai": openai_ok, "ig": ig_ok}}
+
+@app.put("/api/settings")
+async def update_settings(request: Request, user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    body = await request.json()
+    result = await db.execute(select(User).where(User.id == user["id"]))
+    u = result.scalar_one()
+    if "groq_api_key" in body: u.groq_api_key = body["groq_api_key"]
+    if "openai_api_key" in body: u.openai_api_key = body["openai_api_key"]
+    if "ig_app_id" in body: u.ig_app_id = body["ig_app_id"]
+    if "ig_app_secret" in body: u.ig_app_secret = body["ig_app_secret"]
+    if "ig_access_token" in body: u.ig_access_token = body["ig_access_token"]
+    await db.commit()
+    return {"data": "ok"}
+
+# === ROUTES: AI Image Generation ===
+@app.get("/api/unsplash/search")
+async def unsplash_search(q: str, user: dict = Depends(get_current_user)):
+    if not settings.unsplash_access_key:
+        return {"data": []}
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"https://api.unsplash.com/search/photos?query={q}&per_page=9&client_id={settings.unsplash_access_key}", timeout=10.0)
+        data = resp.json()
+        results = [{"thumb": r["urls"]["thumb"], "url": r["urls"]["regular"]} for r in data.get("results", [])[:9]]
+        return {"data": results}
+
+@app.post("/api/generate-image")
+async def generate_image(request: Request, user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    body = await request.json()
+    prompt = body.get("prompt", "")
+    if not prompt:
+        raise HTTPException(400, "Prompt required")
+    # Get user's OpenAI key or fallback to system key
+    result = await db.execute(select(User).where(User.id == user["id"]))
+    u = result.scalar_one()
+    api_key = u.openai_api_key or settings.openai_api_key
+    if not api_key:
+        raise HTTPException(400, "OpenAI API key belum diset. Buka menu ⚙️ Config untuk mengisi API key.")
+    try:
+        from openai import AsyncOpenAI
+        client = AsyncOpenAI(api_key=api_key)
+        resp = await client.images.generate(model="gpt-image-1", prompt=prompt, size="1024x1024", n=1, quality="low")
+        if resp.data[0].url:
+            return {"data": {"url": resp.data[0].url}}
+        elif resp.data[0].b64_json:
+            return {"data": {"url": f"data:image/png;base64,{resp.data[0].b64_json}"}}
+        else:
+            raise HTTPException(500, "No image returned")
+    except Exception as e:
+        err_msg = str(e)
+        if "billing" in err_msg.lower() or "quota" in err_msg.lower() or "insufficient" in err_msg.lower():
+            raise HTTPException(402, "OpenAI quota habis. Silakan top-up di https://platform.openai.com/account/billing")
+        raise HTTPException(500, f"Gagal generate gambar: {err_msg}")
+
+# === ROUTES: User Management ===
+@app.get("/api/users")
+async def list_users(user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if user["role"] not in ("admin", "manager"):
+        raise HTTPException(403, "Only admin/manager can view users")
+    result = await db.execute(select(User).order_by(User.created_at.desc()))
+    return {"data": [{"id": u.id, "email": u.email, "name": u.name, "role": u.role, "is_active": u.is_active} for u in result.scalars().all()]}
+
+class RoleUpdate(BaseModel):
+    role: str
+
+@app.put("/api/users/{user_id}/role")
+async def update_user_role(user_id: str, req: RoleUpdate, user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    if user["role"] != "admin":
+        raise HTTPException(403, "Only admin can change roles")
+    if req.role not in ("creator", "manager", "admin"):
+        raise HTTPException(400, "Invalid role")
+    result = await db.execute(select(User).where(User.id == user_id))
+    target = result.scalar_one_or_none()
+    if not target:
+        raise HTTPException(404, "User not found")
+    target.role = req.role
+    await db.commit()
+    return {"data": {"id": target.id, "role": target.role}}
+
 # === ROUTES: Content Generation ===
+@app.post("/api/suggest/{field}")
+async def suggest_field(field: str, request: Request, user: dict = Depends(get_current_user)):
+    body = await request.json()
+    topic = body.get("topic", "")
+    audience = body.get("audience", "")
+    tone = body.get("tone", "")
+    content_type = body.get("content_type", "")
+    ctx = body.get("context", "")
+
+    filled = []
+    if topic: filled.append(f"Topik: {topic}")
+    if audience: filled.append(f"Audiens: {audience}")
+    if tone: filled.append(f"Gaya: {tone}")
+    if content_type: filled.append(f"Tipe: {content_type}")
+    if ctx: filled.append(f"Konteks: {ctx}")
+    context_str = "\n".join(filled) if filled else "Belum ada field yang diisi"
+
+    prompts = {
+        "topic": f"Berdasarkan konteks berikut:\n{context_str}\n\nBerikan 5 ide topik konten Instagram yang relevan dan engaging. Format: satu topik per baris, tanpa numbering, tanpa penjelasan.",
+        "audience": f"Berdasarkan konteks berikut:\n{context_str}\n\nBerikan 5 pilihan target audiens yang spesifik dan relevan. Format: satu audiens per baris, tanpa numbering.",
+        "context": f"Berdasarkan konteks berikut:\n{context_str}\n\nBerikan 5 instruksi/konteks tambahan yang bisa memperkaya konten ini. Format: satu konteks per baris, tanpa numbering.",
+    }
+    if field not in prompts:
+        raise HTTPException(400, "Invalid field")
+    messages = [{"role": "user", "content": prompts[field]}]
+    try:
+        if groq_client:
+            resp = await groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=messages, temperature=0.8, max_tokens=200)
+            text = resp.choices[0].message.content
+        elif openai_client:
+            resp = await openai_client.chat.completions.create(model="gpt-4o-mini", messages=messages, temperature=0.8, max_tokens=200)
+            text = resp.choices[0].message.content
+        else:
+            text = ""
+        suggestions = [s.strip().lstrip('•-123456789. ') for s in text.strip().split('\n') if s.strip()][:5]
+        return {"data": suggestions}
+    except Exception:
+        return {"data": []}
+@app.post("/api/suggest-manual/{field}")
+async def suggest_manual_field(field: str, request: Request, user: dict = Depends(get_current_user)):
+    body = await request.json()
+    topic = body.get("topic", "")
+    content_type = body.get("content_type", "feed")
+    caption = body.get("caption", "")
+    ctx = f"Tipe: {content_type}"
+    if topic: ctx += f", Topik: {topic}"
+    if caption: ctx += f", Caption: {caption[:100]}"
+
+    prompts = {
+        "topic": f"Konteks: {ctx}\nBerikan 5 ide topik/judul untuk konten Instagram {content_type}. Satu per baris, tanpa numbering.",
+        "caption": f"Konteks: {ctx}\nBerikan 3 variasi caption Instagram yang engaging. Satu per baris, tanpa numbering.",
+        "hashtags": f"Konteks: {ctx}\nBerikan 5 set hashtag (masing-masing 5-7 hashtag) yang relevan. Satu set per baris.",
+        "cta": f"Konteks: {ctx}\nBerikan 5 CTA (call to action) yang engaging untuk Instagram. Satu per baris, tanpa numbering.",
+        "hook": f"Konteks: {ctx}\nBerikan 5 hook/kalimat pembuka yang menarik untuk reels (3 detik pertama). Satu per baris.",
+        "script": f"Konteks: {ctx}\nBerikan 3 variasi script pendek (30-60 detik) untuk reels. Satu per baris.",
+        "visual": f"Konteks: {ctx}\nBerikan 5 ide visual direction/transisi untuk reels. Satu per baris.",
+        "interaction": f"Konteks: {ctx}\nBerikan 5 ide poll/quiz/question untuk Instagram Story. Satu per baris.",
+    }
+    if field not in prompts:
+        raise HTTPException(400, "Invalid field")
+    messages = [{"role": "user", "content": prompts[field]}]
+    try:
+        if groq_client:
+            resp = await groq_client.chat.completions.create(model="llama-3.3-70b-versatile", messages=messages, temperature=0.8, max_tokens=300)
+            text = resp.choices[0].message.content
+        elif openai_client:
+            resp = await openai_client.chat.completions.create(model="gpt-4o-mini", messages=messages, temperature=0.8, max_tokens=300)
+            text = resp.choices[0].message.content
+        else:
+            text = ""
+        suggestions = [s.strip().lstrip('•-123456789. ') for s in text.strip().split('\n') if s.strip()][:5]
+        return {"data": suggestions}
+    except Exception:
+        return {"data": []}
+
+@app.post("/api/content/manual")
+async def create_manual_content(request: Request, user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
+    body = await request.json()
+    content = Content(
+        creator_id=user["id"],
+        content_type=body.get("content_type", "feed"),
+        topic=body.get("topic", ""),
+        body=body.get("body", ""),
+        image_url=body.get("image_url", None),
+        status="draft",
+    )
+    db.add(content)
+    await db.commit()
+    await db.refresh(content)
+    return {"data": _content_to_dict(content)}
+
 @app.post("/api/content/generate")
 async def api_generate(req: GenerateRequest, user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
     result = await generate_content(req)
@@ -288,7 +500,10 @@ async def api_generate(req: GenerateRequest, user: dict = Depends(get_current_us
 # === ROUTES: Content CRUD ===
 @app.get("/api/content")
 async def list_content(status: Optional[str] = None, user: dict = Depends(get_current_user), db: AsyncSession = Depends(get_db)):
-    q = select(Content).where(Content.creator_id == user["id"]).order_by(Content.created_at.desc())
+    if user["role"] in ("admin", "manager"):
+        q = select(Content).order_by(Content.created_at.desc())
+    else:
+        q = select(Content).where(Content.creator_id == user["id"]).order_by(Content.created_at.desc())
     if status:
         q = q.where(Content.status == status)
     result = await db.execute(q)
