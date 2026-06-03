@@ -42,7 +42,7 @@ cp .env.example .env   # Edit: tambahkan API keys
 ./start.sh
 ```
 
-Browser otomatis terbuka di http://localhost:8000
+Browser otomatis terbuka di http://localhost:8010
 
 ## 📁 Project Structure (AIDLC)
 

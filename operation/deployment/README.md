@@ -4,7 +4,7 @@
 
 | Env | Infra | Trigger | URL |
 |-----|-------|---------|-----|
-| Dev | Docker Compose (local) | Manual | localhost:8000 |
+| Dev | Docker Compose (local) | Manual | localhost:8010 |
 | Staging | K8s cluster | Push to develop | staging.gptflow.app |
 | Production | K8s cluster | Push to main + approval | app.gptflow.app |
 

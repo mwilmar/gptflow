@@ -62,15 +62,15 @@ WORKDIR /app
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ app/
-EXPOSE 8000
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4"]
+EXPOSE 8010
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8010", "--workers", "4"]
 ```
 
 ## Environment Strategy
 
 | Environment | Branch | Auto-deploy | URL |
 |-------------|--------|-------------|-----|
-| Development | feature/* | No | localhost:8000 |
+| Development | feature/* | No | localhost:8010 |
 | Staging | develop | Yes | staging.gptflow.app |
 | Production | main | Yes (with approval) | app.gptflow.app |
 
